@@ -1,0 +1,19 @@
+_target_: diffusion.modules.diffusion.DiffusionModule
+diffusion:
+  _target_: diffusion.modules.diffusion.Diffusion
+  timesteps: 1000
+  scheduler:
+    _target_: diffusion.schedulers.linear_scheduler.LinearScheduler
+    timesteps: 1000
+    start: 0.0001
+    end: 0.02
+model: 
+  _target_: diffusion.models.unet.Unet
+  in_channels: 3
+  init_channels: 128
+  channels: [128, 256, 512]
+  downsamples: [True, True, False]
+  attentions: ["linear", "linear", "dot"]
+  heads: 4
+  head_dim: 32
+  dropout: 0.1
