@@ -76,6 +76,12 @@ class ResnetBlock(nn.Module):
         self.block2 = Block(out_channels, out_channels)
         self.residual_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
 
+        if self.mlp is not None:
+            print("################")
+            print(self.mlp[1].weight.device)
+            print(self.block1.conv.weight.device)
+            print("################")
+
     def forward(self, x: torch.Tensor, time_embedding: torch.Tensor | None = None) -> torch.Tensor:
         scale_shift = None
         if self.mlp is not None and time_embedding is not None:

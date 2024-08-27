@@ -38,8 +38,8 @@ class Diffusion(nn.Module):
 class DiffusionModule(LightningModule):
     def __init__(self, diffusion: Diffusion, model: nn.Module) -> None:
         super().__init__()
-        self.diffusion = diffusion
-        self.model = model
+        self.diffusion = diffusion.cuda()
+        self.model = model.cuda()
 
     def training_step(self, batch, batch_idx):
         x, _ = batch
