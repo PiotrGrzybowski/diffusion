@@ -162,3 +162,4 @@ outputs/
 *.DS_Store
 *.idea/
 *logs/
+*.aim

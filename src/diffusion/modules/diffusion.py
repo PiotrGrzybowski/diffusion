@@ -49,9 +49,22 @@ class DiffusionModule(LightningModule):
 
         target_noise = self.diffusion.q_sample(x, timesteps, noise)
         predicted_noise = self.model(x, timesteps)
-        loss = nn.functional.mse_loss(predicted_noise, target_noise)
+        # loss = nn.functional.mse_loss(predicted_noise, target_noise)
+        loss = nn.functional.smooth_l1_loss(predicted_noise, target_noise)
         self.log("loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
+    def validation_step(self, batch, batch_idx):
+        x, _ = batch
+        timesteps = self.diffusion.sample_timesteps(x.size(0)).to(device=x.device, dtype=torch.long)
+        noise = torch.randn_like(x)
+
+        target_noise = self.diffusion.q_sample(x, timesteps, noise)
+        predicted_noise = self.model(x, timesteps)
+        # loss = nn.functional.mse_loss(predicted_noise, target_noise)
+        loss = nn.functional.smooth_l1_loss(predicted_noise, target_noise)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        return torch.optim.Adam(self.model.parameters(), lr=1e-4)

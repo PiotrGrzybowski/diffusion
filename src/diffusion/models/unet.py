@@ -20,6 +20,18 @@ class FocusDownsample(nn.Module):
         return x
 
 
+class Upsample(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int) -> None:
+        super().__init__()
+        self.upsample = nn.Upsample(scale_factor=2, mode="nearest")
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.upsample(x)
+        x = self.conv(x)
+        return x
+
+
 class Block(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, dropout: float = 0) -> None:
         super().__init__()
@@ -65,8 +77,8 @@ class ResnetBlock(nn.Module):
 class EncoderSegment(nn.Module):
     def __init__(
         self,
-        block_channels: int,
-        downsample_channels: int,
+        in_channels: int,
+        out_channels: int,
         time_dim: int,
         attention: str,
         heads: int,
@@ -75,10 +87,10 @@ class EncoderSegment(nn.Module):
         dropout: float = 0,
     ) -> None:
         super().__init__()
-        self.block1 = ResnetBlock(block_channels, block_channels, time_dim, dropout)
-        self.block2 = ResnetBlock(block_channels, block_channels, time_dim, dropout)
-        self.attention = create_attention(attention, block_channels, heads, head_dim)
-        self.downsample = FocusDownsample(block_channels, downsample_channels) if downsample else nn.Identity()
+        self.block1 = ResnetBlock(in_channels, in_channels, time_dim, dropout)
+        self.block2 = ResnetBlock(in_channels, in_channels, time_dim, dropout)
+        self.attention = create_attention(attention, in_channels, heads, head_dim)
+        self.block3 = FocusDownsample(in_channels, out_channels) if downsample else nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
     def forward(self, x: torch.Tensor, time: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor]]:
         residuals = []
@@ -90,9 +102,41 @@ class EncoderSegment(nn.Module):
         x = self.attention(x) + x
         residuals.append(x)
 
-        x = self.downsample(x)
+        x = self.block3(x)
 
         return x, residuals
+
+
+class DecoderSegment(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        time_dim: int,
+        attention: str,
+        heads: int,
+        head_dim: int,
+        upsample: bool,
+        dropout: float = 0,
+    ) -> None:
+        super().__init__()
+        self.block1 = ResnetBlock(in_channels + out_channels, in_channels, time_dim, dropout)
+        self.block2 = ResnetBlock(in_channels + out_channels, in_channels, time_dim, dropout)
+        self.attention = create_attention(attention, in_channels, heads, head_dim)
+        self.block3 = Upsample(in_channels, out_channels) if upsample else nn.Conv2d(in_channels, out_channels, kernel_size=1)
+
+    def forward(self, x: torch.Tensor, time: torch.Tensor, residuals: list[torch.Tensor]) -> torch.Tensor:
+        x = torch.cat([x, residuals.pop()], dim=1)
+        x = self.block1(x, time)
+
+        x = torch.cat([x, residuals.pop()], dim=1)
+        x = self.block2(x, time)
+
+        x = self.attention(x) + x
+
+        x = self.block3(x)
+
+        return x
 
 
 class UnetEncoder(nn.Module):
@@ -119,7 +163,44 @@ class UnetEncoder(nn.Module):
         for segment in self.segments:
             x, residual = segment(x, time)
             residuals.append(residual)
-        return x, residuals
+        return x, list(reversed(residuals))
+
+
+class UnetDecoder(nn.Module):
+    def __init__(
+        self,
+        channels: list[int],
+        upsamples: list[bool],
+        time_dim: int,
+        attentions: list[str],
+        heads: int,
+        head_dim: int,
+        dropout: float = 0,
+    ) -> None:
+        super().__init__()
+        self.segments = nn.ModuleList()
+
+        for block_channels, upsample_channels, upsample, attention in zip(channels[:-1], channels[1:], upsamples, attentions):
+            self.segments.append(DecoderSegment(block_channels, upsample_channels, time_dim, attention, heads, head_dim, upsample, dropout))
+
+    def forward(self, x: torch.Tensor, time: torch.Tensor, residuals: list[list[torch.Tensor]]) -> torch.Tensor:
+        for segment, residual in zip(self.segments, residuals):
+            x = segment(x, time, residual)
+        return x
+
+
+class UnetBottleNeck(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, time_dim: int, heads: int, head_dim: int, dropout: float = 0) -> None:
+        super().__init__()
+        self.block1 = ResnetBlock(in_channels, out_channels, time_dim, dropout)
+        self.block2 = ResnetBlock(in_channels, out_channels, time_dim, dropout)
+        self.attention = create_attention("dot", out_channels, heads, head_dim)
+
+    def forward(self, x: torch.Tensor, time: torch.Tensor) -> torch.Tensor:
+        x = self.block1(x, time)
+        x = self.attention(x) + x
+        x = self.block2(x, time)
+        return x
 
 
 class Unet(nn.Module):
@@ -141,13 +222,22 @@ class Unet(nn.Module):
         self.encoder = UnetEncoder(
             [128, 128, 256, 512], [True, True, False], time_dim, ["linear", "linear", "dot"], heads, head_dim, dropout
         )
+        self.decoder = UnetDecoder(
+            [512, 256, 128, 128], [True, True, False], time_dim, ["dot", "linear", "linear"], heads, head_dim, dropout
+        )
+        self.botleneck = UnetBottleNeck(512, 512, time_dim, heads, head_dim, dropout)
 
     def forward(self, x: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         time = self.time_embedding(timesteps)
-        print(f"Time embedding shape: {time.shape}")
-        x = self.init_conv(x)
-        x, residuals = self.encoder(x, time)
+        # print(f"Time embedding shape: {time.shape}")
+        skip_connection = self.init_conv(x)
 
+        x, residuals = self.encoder(skip_connection, time)
+        x = self.botleneck(x, time)
+        x = self.decoder(x, time, residuals)
+
+        # x = self.final_block(x[:, :256, :, :], time)
+        x = torch.cat([x, skip_connection], dim=1)
         x = self.final_block(x, time)
         x = self.final_conv(x)
 
@@ -160,3 +250,5 @@ if __name__ == "__main__":
     # print(encoder)
     x = torch.rand((16, 128, 64, 64))
     encoder(x, time)
+
+    decoder = UnetDecoder([512, 256, 128, 128], [True, True, False], 512, ["dot", "linear", "linear"], 4, 32, 0)

@@ -1,4 +1,4 @@
 _target_: diffusion.data.mnist_datamodule.MNISTDataModule
 path: /tmp/data
-batch_size: 16
+batch_size: 128
 num_workers: 7
