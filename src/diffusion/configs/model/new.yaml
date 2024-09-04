@@ -11,5 +11,8 @@ model:
   _target_: diffusion.models.unet.Unet
   in_channels: 1
   init_channels: 128
+  channels: [128, 256, 512]
+  downsamples: [True, True, False]
+  attentions: ["linear", "linear", "dot"]
   heads: 4
   head_dim: 32

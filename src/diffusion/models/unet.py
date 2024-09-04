@@ -208,6 +208,9 @@ class Unet(nn.Module):
         self,
         in_channels: int,
         init_channels: int,
+        channels: list[int],
+        downsamples: list[bool],
+        attentions: list[str],
         heads: int,
         head_dim: int,
         dropout: float = 0,
@@ -219,13 +222,10 @@ class Unet(nn.Module):
         self.final_block = ResnetBlock(init_channels * 2, init_channels, time_dim, dropout)
         self.final_conv = nn.Conv2d(init_channels, in_channels, kernel_size=1)
 
-        self.encoder = UnetEncoder(
-            [128, 128, 256, 512], [True, True, False], time_dim, ["linear", "linear", "dot"], heads, head_dim, dropout
-        )
-        self.decoder = UnetDecoder(
-            [512, 256, 128, 128], [True, True, False], time_dim, ["dot", "linear", "linear"], heads, head_dim, dropout
-        )
-        self.botleneck = UnetBottleNeck(512, 512, time_dim, heads, head_dim, dropout)
+        channels = [init_channels] + channels
+        self.encoder = UnetEncoder(channels, downsamples, time_dim, attentions, heads, head_dim, dropout)
+        self.decoder = UnetDecoder(channels[::-1], downsamples, time_dim, attentions[::-1], heads, head_dim, dropout)
+        self.botleneck = UnetBottleNeck(channels[-1], channels[-1], time_dim, heads, head_dim, dropout)
 
     def forward(self, x: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         time = self.time_embedding(timesteps)
