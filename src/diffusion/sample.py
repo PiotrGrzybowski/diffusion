@@ -49,8 +49,10 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
     log.info(f"Result path: {path}")
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer)  # callbacks=callbacks, logger=logger)
 
+    log.info("Sampling from model...")
     result = typing.cast(list[torch.Tensor], trainer.predict(model, datamodule=datamodule, ckpt_path=cfg["ckpt_path"]))[0]
 
+    log.info("Saving result...")
     save_image(result, path, nrow=int(math.sqrt(result.shape[0])))
 
     object_dict = {
