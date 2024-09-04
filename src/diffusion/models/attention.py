@@ -35,6 +35,32 @@ class DotAttention(nn.Module):
         return out
 
 
+class OptimizedAttention(nn.Module):
+    def __init__(self, dim: int, heads: int, head_dim: int) -> None:
+        super().__init__()
+        self.dim = dim
+        self.scale = head_dim**-0.5
+        self.heads = heads
+        self.head_dim = head_dim
+        self.norm = RMSNorm(dim)
+
+        self.embed_dim = head_dim * heads
+        self.projection = nn.Conv2d(dim, self.embed_dim, kernel_size=1, bias=False)
+        self.final_projection = nn.Conv2d(self.embed_dim, dim, kernel_size=1)
+        self.multihead_attention = nn.MultiheadAttention(embed_dim=self.embed_dim, num_heads=heads, batch_first=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, c, h, w = x.shape
+        x = self.norm(x)
+
+        projected_input = self.projection(x)
+        projected_input = projected_input.view(b, self.embed_dim, h * w).permute(0, 2, 1)
+        attention_out, _ = self.multihead_attention(projected_input, projected_input, projected_input)
+        attention_out = attention_out.permute(0, 2, 1).view(b, self.embed_dim, h, w)
+        out = self.final_projection(attention_out)
+        return out
+
+
 class LinearAttention(nn.Module):
     def __init__(self, dim: int, heads: int, head_dim: int) -> None:
         super().__init__()
@@ -76,7 +102,7 @@ def create_attention(attention: str, dim: int, heads: int, head_dim: int) -> nn.
 
 
 if __name__ == "__main__":
-    x = torch.rand(4, 256, 16, 16)
+    x = torch.rand(4, 256, 8, 8)
 
     attention = DotAttention(256, 4, 300)
     print(attention)
@@ -85,3 +111,6 @@ if __name__ == "__main__":
     linear_attention = LinearAttention(256, 4, 300)
     out = linear_attention(x)
     print(out.shape)
+
+    optimized_attention = OptimizedAttention(256, 4, 300)
+    optimized_out = optimized_attention(x)
