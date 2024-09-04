@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-from diffusion.unet import FocusDownsample
 from einops.layers.torch import Rearrange
+
+from diffusion.unet import FocusDownsample
 
 
 class EinopsDownsample(nn.Module):
