@@ -52,13 +52,6 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
     result = typing.cast(list[torch.Tensor], trainer.predict(model, datamodule=datamodule, ckpt_path=cfg["ckpt_path"]))[0]
 
     save_image(result, path, nrow=int(math.sqrt(result.shape[0])))
-    # .detach().cpu().numpy()
-    # np.save(path, result)
-
-    # model.load_from_checkpoint(cfg.ckpt_path)
-
-    # model.eval()
-    # result = model.sample(16)
 
     object_dict = {
         "cfg": cfg,
@@ -73,27 +66,6 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
         log.info("Logging hyperparameters!")
         log_hyperparameters(object_dict)
 
-    # if cfg.get("train"):
-    #     log.info("Starting training!")
-    #     trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
-    #
-    # train_metrics = trainer.callback_metrics
-    #
-    # if cfg.get("test"):
-    #     log.info("Starting testing!")
-    #     ckpt_path = trainer.checkpoint_callback.best_model_path
-    #     if ckpt_path == "":
-    #         log.warning("Best ckpt not found! Using current weights for testing...")
-    #         ckpt_path = None
-    #     trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
-    #     log.info(f"Best ckpt path: {ckpt_path}")
-    #
-    # test_metrics = trainer.callback_metrics
-    #
-    # # merge train and test metrics
-    # metric_dict = {**train_metrics, **test_metrics}
-    #
-    # return metric_dict, None#, object_dict
     return None, None
 
 

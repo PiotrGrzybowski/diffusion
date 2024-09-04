@@ -226,20 +226,15 @@ class Unet(nn.Module):
             [512, 256, 128, 128], [True, True, False], time_dim, ["dot", "linear", "linear"], heads, head_dim, dropout
         )
         self.botleneck = UnetBottleNeck(512, 512, time_dim, heads, head_dim, dropout)
-        # self.encoder = UnetEncoder([64, 128, 256], [True, False], time_dim, ["linear", "dot"], heads, head_dim, dropout)
-        # self.decoder = UnetDecoder([256, 128, 64], [True, False], time_dim, ["dot", "linear"], heads, head_dim, dropout)
-        # self.botleneck = UnetBottleNeck(256, 256, time_dim, heads, head_dim, dropout)
 
     def forward(self, x: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         time = self.time_embedding(timesteps)
-        # print(f"Time embedding shape: {time.shape}")
         skip_connection = self.init_conv(x)
 
         x, residuals = self.encoder(skip_connection, time)
         x = self.botleneck(x, time)
         x = self.decoder(x, time, residuals)
 
-        # x = self.final_block(x[:, :256, :, :], time)
         x = torch.cat([x, skip_connection], dim=1)
         x = self.final_block(x, time)
         x = self.final_conv(x)
