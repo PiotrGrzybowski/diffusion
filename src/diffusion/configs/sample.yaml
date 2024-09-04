@@ -6,8 +6,8 @@ defaults:
   - _self_
   - data: mnist
   - model: ddm
-  - callbacks: default
-  - logger: aim # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  # - callbacks: default
+  - logger: aim
   - trainer: gpu
   - paths: default
   - extras: default
@@ -17,34 +17,16 @@ defaults:
   # e.g. best hyperparameters for given model and datamodule
   - experiment: null
 
-  # config for hyperparameter optimization
-  - hparams_search: null
-
-  # optional local config for machine/user specific settings
-  # it's optional since it doesn't need to exist and is excluded from version control
-  - optional local: default
-
-  # debugging config (enable through command line, e.g. `python train.py debug=default)
-  - debug: null
-
 # task name, determines output directory path
-task_name: "train"
+task_name: "sample"
 
 # tags to help you identify your experiments
 # you can overwrite this in experiment configs
 # overwrite from command line with `python train.py tags="[first_tag, second_tag]"`
 tags: ["dev"]
 
-# set False to skip model training
-train: True
-
-# evaluate on test set, using best model weights achieved during training
-# lightning chooses best weights based on the metric specified in checkpoint callback
-test: True
-
 # simply provide checkpoint path to resume training
-ckpt_path: null
-
+# ckpt_path: /home/alphabrain/Workspace/Projects/diffusion/logs/train/runs/2024-09-01_23-52-45/checkpoints/last.ckpt
+ckpt_path: /home/alphabrain/Workspace/Projects/diffusion/src/diffusion/tmp/MNISTDiffusion/my.pt
 # seed for random number generators in pytorch, numpy and python.random
 seed: null
-

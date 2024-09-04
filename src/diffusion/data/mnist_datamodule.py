@@ -11,6 +11,18 @@ from torchvision.transforms import transforms
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
+class GaussianDataset(Dataset):
+    def __init__(self, shape: tuple[int, ...]) -> None:
+        self.shape = shape
+        self.data = torch.randn(shape)
+
+    def __len__(self) -> int:
+        return self.shape[0]
+
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        return self.data[idx]
+
+
 class MNISTDataModule(LightningDataModule):
     def __init__(
         self,
@@ -19,20 +31,23 @@ class MNISTDataModule(LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
+        predict_size: int = 16,
     ) -> None:
         super().__init__()
 
         self.path = path
         self.batch_size = batch_size
+        self.predict_size = predict_size
         self.val_split = val_split
         self.num_workers = num_workers
         self.pin_memory = pin_memory
 
-        self.transforms = transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda t: (t * 2) - 1)])
+        self.transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5], [0.5])])  # [0,1] to [-1,1]
 
         self.data_train: Dataset | None = None
         self.data_val: Dataset | None = None
         self.data_test: Dataset | None = None
+        self.data_predict: Dataset | None = None
 
         self.batch_size_per_device = batch_size
 
@@ -51,6 +66,7 @@ class MNISTDataModule(LightningDataModule):
             self.data_train = train_set
             self.data_val = val_set
             self.data_test = test_set
+            self.data_predict = GaussianDataset((self.predict_size, 1, 28, 28))
 
     def train_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         if self.data_train:
@@ -77,6 +93,7 @@ class MNISTDataModule(LightningDataModule):
             raise RuntimeError("The validation dataset is not loaded.")
 
     def test_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
+        self.data_predict = GaussianDataset((self.predict_size, 1, 28, 28))
         if self.data_test:
             return DataLoader(
                 dataset=self.data_test,
@@ -87,6 +104,18 @@ class MNISTDataModule(LightningDataModule):
             )
         else:
             raise RuntimeError("The test dataset is not loaded.")
+
+    def predict_dataloader(self) -> DataLoader[torch.Tensor]:
+        if self.data_predict:
+            return DataLoader(
+                dataset=self.data_predict,
+                batch_size=self.predict_size,
+                num_workers=self.num_workers,
+                pin_memory=self.pin_memory,
+                shuffle=False,
+            )
+        else:
+            raise RuntimeError("The prediction dataset is not loaded.")
 
     def _check_batch_size_compatibility(self) -> None:
         if self.trainer is not None:

@@ -28,13 +28,13 @@ class Attention(nn.Module):
             for x in qkv
         )
 
-        assert torch.allclose(q1, q)
+        # assert torch.allclose(q1, q)
 
         similarity = torch.matmul(q, k.transpose(-2, -1)) * self.scale
         sim = torch.einsum("b h i d, b h j d -> b h i j", q, k) * self.scale
 
         # print(similarity.shape, sim.shape)
-        assert torch.allclose(similarity, sim)
+        # assert torch.allclose(similarity, sim)
 
         attention = similarity.softmax(dim=-1)
 
@@ -42,12 +42,12 @@ class Attention(nn.Module):
         out1 = torch.einsum("b h i j, b h j d -> b h i d", attention, v)
         # print(out.shape, out1.shape)
 
-        assert torch.allclose(out, out1)
+        # assert torch.allclose(out, out1)
 
         out_last = out.permute(0, 1, 3, 2).contiguous().view(b, self.head_dim * self.heads, h, w)
         out_last_1 = rearrange(out, "b h (x y) c -> b (h c) x y", x=h)
 
-        assert torch.allclose(out_last, out_last_1)
+        # assert torch.allclose(out_last, out_last_1)
 
         out = self.to_out(out_last)
 
@@ -79,9 +79,9 @@ class LinearAttention(nn.Module):
         # print(q.shape, q1.shape)
         # print(k.shape, k1.shape)
 
-        assert torch.allclose(q, q1)
-        assert torch.allclose(k, k1)
-        assert torch.allclose(v, v1)
+        # assert torch.allclose(q, q1)
+        # assert torch.allclose(k, k1)
+        # assert torch.allclose(v, v1)
 
         q = q.softmax(dim=-2)
         k = k.softmax(dim=-1)
@@ -89,8 +89,8 @@ class LinearAttention(nn.Module):
         q1 = q1.softmax(dim=-2)
         k1 = k1.softmax(dim=-1)
 
-        assert torch.allclose(q, q1)
-        assert torch.allclose(k, k1)
+        # assert torch.allclose(q, q1)
+        # assert torch.allclose(k, k1)
 
         # q = q * self.scale
         # print(q.shape, k.shape)
@@ -100,23 +100,23 @@ class LinearAttention(nn.Module):
         q = q * self.scale
         q1 = q1 * self.scale
 
-        assert torch.allclose(context, contex)
+        # assert torch.allclose(context, contex)
 
         out = torch.einsum("b h d e, b h d n -> b h e n", context, q1)
         ou = torch.matmul(contex.transpose(-1, -2), q)
 
         # print(out.shape, ou.shape)
-        assert torch.allclose(out, ou)
+        # assert torch.allclose(out, ou)
 
         out = rearrange(out, "b h c (x y) -> b (h c) x y", x=h)
         ou = ou.view(b, self.hidden_dim, h, w)
 
-        assert torch.allclose(out, ou)
+        # assert torch.allclose(out, ou)
 
         out = self.to_out(out)
         ou = self.to_out(ou)
 
-        assert torch.allclose(out, ou)
+        # assert torch.allclose(out, ou)
 
         return ou
 

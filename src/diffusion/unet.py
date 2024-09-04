@@ -15,7 +15,7 @@ class SinusoidalPositionalEmbedding(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         embedding = math.log(self.theta) / (self.size // 2 - 1)
-        embedding = torch.exp(torch.arange(self.size // 2) * -embedding)
+        embedding = torch.exp(torch.arange(self.size // 2).to(x) * -embedding)
         embedding = x[:, None] * embedding[None, :]
         embedding = torch.cat([torch.sin(embedding), torch.cos(embedding)], dim=-1)
         return embedding

@@ -1,11 +1,18 @@
+import math
+import typing
+from pathlib import Path
+
 import hydra
 import rootutils
+import torch
 from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
+from torchvision.utils import save_image
 
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
+from diffusion.utils.logging_utils import log_hyperparameters
 from diffusion.utils.ranked_logger import RankedLogger
 from diffusion.utils.task_wrapper import task_wrapper
 
@@ -37,7 +44,21 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
     logger: list[Logger] = instantiate_loggers(cfg.get("logger"))
 
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
-    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
+
+    path = Path(cfg.paths.output_dir) / "result.png"
+    log.info(f"Result path: {path}")
+    trainer: Trainer = hydra.utils.instantiate(cfg.trainer)  # callbacks=callbacks, logger=logger)
+
+    result = typing.cast(list[torch.Tensor], trainer.predict(model, datamodule=datamodule, ckpt_path=cfg["ckpt_path"]))[0]
+
+    save_image(result, path, nrow=int(math.sqrt(result.shape[0])))
+    # .detach().cpu().numpy()
+    # np.save(path, result)
+
+    # model.load_from_checkpoint(cfg.ckpt_path)
+
+    # model.eval()
+    # result = model.sample(16)
 
     object_dict = {
         "cfg": cfg,
@@ -48,14 +69,14 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
         "trainer": trainer,
     }
 
-    # if logger:
-    #     log.info("Logging hyperparameters!")
-    #     log_hyperparameters(object_dict)
+    if logger:
+        log.info("Logging hyperparameters!")
+        log_hyperparameters(object_dict)
 
-    if cfg.get("train"):
-        log.info("Starting training!")
-        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
-
+    # if cfg.get("train"):
+    #     log.info("Starting training!")
+    #     trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+    #
     # train_metrics = trainer.callback_metrics
     #
     # if cfg.get("test"):
@@ -76,7 +97,7 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
     return None, None
 
 
-@hydra.main(version_base="1.3", config_path="configs", config_name="train.yaml")
+@hydra.main(version_base="1.3", config_path="configs", config_name="sample.yaml")
 def main(cfg: DictConfig) -> float | None:
     """Main entry point for training.
 

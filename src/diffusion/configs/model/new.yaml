@@ -1,10 +1,10 @@
 _target_: diffusion.modules.diffusion.DiffusionModule
 diffusion:
   _target_: diffusion.modules.diffusion.Diffusion
-  timesteps: 300
+  timesteps: 1000
   scheduler:
     _target_: diffusion.schedulers.linear_scheduler.LinearScheduler
-    timesteps: 300
+    timesteps: 1000
     start: 0.0001
     end: 0.02
 model: 
