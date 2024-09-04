@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from einops.einops import rearrange
 
-from diffusion.normalization import RMSNorm
+from diffusion.models.normalization import RMSNorm
 
 
 class Attention(nn.Module):
