@@ -6,7 +6,7 @@ defaults:
   - _self_
   - data: mnist
   - model: ddm
-  # - callbacks: default
+  - callbacks: default
   - logger: aim
   - trainer: gpu
   - paths: default
@@ -26,7 +26,7 @@ task_name: "sample"
 tags: ["dev"]
 
 # simply provide checkpoint path to resume training
-# ckpt_path: /home/alphabrain/Workspace/Projects/diffusion/logs/train/runs/2024-09-01_23-52-45/checkpoints/last.ckpt
-ckpt_path: /home/alphabrain/Workspace/Projects/diffusion/src/diffusion/tmp/MNISTDiffusion/my.pt
+ckpt_path: /home/alphabrain/Workspace/Projects/diffusion/logs/train/runs/2024-09-04_23-49-54/checkpoints/last.ckpt
+# ckpt_path: /home/alphabrain/Workspace/Projects/diffusion/src/diffusion/tmp/MNISTDiffusion/my.pt
 # seed for random number generators in pytorch, numpy and python.random
 seed: null

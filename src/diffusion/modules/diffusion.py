@@ -77,6 +77,10 @@ class DiffusionModule(LightningModule):
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
+    # def on_train_epoch_end(self) -> None:
+    #     # lr = self.trainer.lr_scheduler_configs[0].scheduler.get_last_lr()[0]
+    #     # self.log("learning_rate", lr, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+
     def predict_step(self, x_t: torch.Tensor) -> torch.Tensor:
         for i in range(self.diffusion.timesteps - 1, -1, -1):
             t = torch.tensor([i for _ in range(len(x_t))]).to(x_t.device)
@@ -93,4 +97,16 @@ class DiffusionModule(LightningModule):
         return x_t
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr=4e-5)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-4)
+        # steps_per_epoch = len(self.trainer.datamodule.train_dataloader())  # Replace with actual steps per epoch
+        # total_steps = self.trainer.max_epochs * steps_per_epoch
+
+        return optimizer
+        # return {
+        #     "optimizer": optimizer,
+        #     "lr_scheduler": {
+        #         "scheduler": scheduler,
+        #         "interval": "step",  # Update the LR after each training step (batch)
+        #         "frequency": 1,  # How often to call the scheduler
+        #     },
+        # }
