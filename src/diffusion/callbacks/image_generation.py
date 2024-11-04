@@ -13,9 +13,10 @@ class ImageGenerationCallback(Callback):
 
     @rank_zero_only
     def on_validation_epoch_end(self, trainer, pl_module):
-        dataloader = trainer.datamodule.predict_dataloader()
-        pl_module.eval()
-        result = pl_module.predict_step(next(iter(dataloader)).to(pl_module.device))
-        path = self.output_dir / "images"
-        path.mkdir(exist_ok=True)
-        save_image(result, path / f"sample_{trainer.current_epoch}.png", nrow=int(math.sqrt(result.shape[0])))
+        if (trainer.current_epoch + 1) % 10 == 0:
+            dataloader = trainer.datamodule.predict_dataloader()
+            pl_module.eval()
+            result = pl_module.predict_step(next(iter(dataloader)).to(pl_module.device))
+            path = self.output_dir / "images"
+            path.mkdir(exist_ok=True)
+            save_image(result, path / f"sample_{trainer.current_epoch}.png", nrow=int(math.sqrt(result.shape[0])))

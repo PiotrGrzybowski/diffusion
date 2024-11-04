@@ -31,7 +31,7 @@ class MNISTDataModule(LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
-        predict_size: int = 16,
+        predict_size: int = 1,
     ) -> None:
         super().__init__()
 

@@ -12,7 +12,8 @@ from diffusion.utils.ranked_logger import RankedLogger
 from diffusion.utils.task_wrapper import task_wrapper
 
 
-rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=False)
+root_path = rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=False)
+configs_path = root_path / "configs"
 
 
 log = RankedLogger(__name__, rank_zero_only=True)
@@ -74,7 +75,7 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="configs", config_name="train.yaml")
+@hydra.main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")
 def main(cfg: DictConfig) -> float | None:
     """Main entry point for training.
 
