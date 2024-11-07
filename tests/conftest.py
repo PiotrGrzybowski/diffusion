@@ -1,5 +1,6 @@
 """This file prepares config fixtures for other tests."""
 
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,27 @@ import rootutils
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, open_dict
+from rootutils import find_root
+
+
+@pytest.fixture(scope="package")
+def data_path() -> Path:
+    """A pytest fixture for creating a temporary directory for data.
+
+    Returns:
+        Path: A Path object pointing to a temporary directory.
+    """
+    return Path(tempfile.gettempdir()) / "data"
+
+
+@pytest.fixture(scope="package")
+def configs_path() -> Path:
+    """A pytest fixture for path to the configs directory.
+
+    Returns:
+        Path: A Path object pointing to the configs directory.
+    """
+    return find_root("pyproject.toml") / "configs"
 
 
 @pytest.fixture(scope="package")
