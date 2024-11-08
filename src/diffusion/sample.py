@@ -24,15 +24,14 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 
 @task_wrapper
-def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
-    # set seed for random number generators in pytorch, numpy and python.random
+def sample(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
     if cfg.get("seed"):
         seed_everything(cfg.seed, workers=True)
 
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
     datamodule.prepare_data()
-    datamodule.setup()
+    datamodule.setup("predict")
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
@@ -83,7 +82,7 @@ def main(cfg: DictConfig) -> float | None:
     extras(cfg)
 
     # train the model
-    metric_dict, _ = train(cfg)
+    metric_dict, _ = sample(cfg)
 
     # safely retrieve metric value for hydra-based hyperparameter optimization
     # metric_value = get_metric_value(

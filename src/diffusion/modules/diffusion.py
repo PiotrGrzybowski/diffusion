@@ -81,7 +81,7 @@ class DiffusionModule(LightningModule):
     #     # lr = self.trainer.lr_scheduler_configs[0].scheduler.get_last_lr()[0]
     #     # self.log("learning_rate", lr, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-    def predict_step(self, x_t: torch.Tensor) -> torch.Tensor:
+    def forward(self, x_t: torch.Tensor) -> torch.Tensor:
         for i in range(self.diffusion.timesteps - 1, -1, -1):
             t = torch.tensor([i for _ in range(len(x_t))]).to(x_t.device)
             predicted_noise = self.model(x_t, t)
