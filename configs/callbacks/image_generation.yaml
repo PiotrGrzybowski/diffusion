@@ -1,3 +1,4 @@
 image_generation:
   _target_: diffusion.callbacks.image_generation.ImageGenerationCallback
   output_dir: ${trainer.default_root_dir}
+  shape: [4, 1, 28, 28]
