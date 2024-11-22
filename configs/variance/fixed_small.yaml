@@ -1,0 +1,2 @@
+_target_: diffusion.variances.VarianceType
+_args_: ["FixedSmall"]
