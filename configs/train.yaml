@@ -11,7 +11,7 @@ defaults:
   - data: mnist
   - model: unet
   - diffusion: default
-  - loss: mse
+  - loss: noise_simple_mse
   - scheduler: linear
   - variance: fixed_small
 

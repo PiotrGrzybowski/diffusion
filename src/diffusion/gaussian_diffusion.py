@@ -78,7 +78,15 @@ class GaussianDiffusion(LightningModule):
         predicted_log_variance = self.p_log_variance(timesteps, model_variance)
 
         loss = self.loss_manager.forward(
-            self.loss_type, timesteps, self.factors, target_mean, target_log_variance, predicted_mean, predicted_log_variance
+            self.loss_type,
+            timesteps,
+            self.factors,
+            target_mean,
+            target_log_variance,
+            target_noise,
+            predicted_mean,
+            predicted_log_variance,
+            model_noise,
         )
 
         return loss
@@ -128,7 +136,7 @@ if __name__ == "__main__":
     model = DummyModule()
     scheduler = LinearScheduler(timesteps, 0.0001, 0.02)
     variance_type = VarianceType.FIXED_SMALL
-    loss_type = LossType.MSE
+    loss_type = LossType.MeanMSE
 
     module = GaussianDiffusion(model, timesteps, loss_type, variance_type, scheduler)
     timesteps = torch.randint(0, 4, (4,)).to(dtype=torch.long)
@@ -159,7 +167,9 @@ if __name__ == "__main__":
     predicted_variance = module.p_variance(t, model_variance)
     print(f"predicted_variance: {predicted_variance.squeeze()}")
 
-    loss = module.loss_manager.forward(LossType.MSE, t, module.factors, target_mean, target_variance, predicted_mean, predicted_variance)
+    loss = module.loss_manager.forward(
+        LossType.MeanMSE, t, module.factors, target_mean, target_variance, predicted_mean, predicted_variance
+    )
     print(f"Mse loss: {loss}")
 
     loss = module.loss_manager.forward(

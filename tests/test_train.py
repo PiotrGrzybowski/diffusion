@@ -8,7 +8,7 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, open_dict
 
 
-losses = ["mse", "simple_mse", "variational_bound"]
+losses = ["mean_mse", "noise_mse", "mean_simple_mse", "noise_simple_mse", "variational_bound"]
 models = ["small_unet"]
 
 

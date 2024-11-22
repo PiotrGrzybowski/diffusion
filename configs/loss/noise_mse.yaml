@@ -1,2 +1,2 @@
 _target_: diffusion.losses.LossType
-_args_: ["SimpleMSE"]
+_args_: ["NoiseMSE"]
