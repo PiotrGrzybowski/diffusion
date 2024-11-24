@@ -104,9 +104,31 @@ class GaussianDiffusion(LightningModule):
 
         return loss
 
+    @torch.inference_mode()
+    def sample(self, shape: tuple[int, ...]):
+        indexes = list(range(self.timesteps_count))[::-1]
+        x_t = torch.randn(shape).to(device=self.device)
+        from tqdm import tqdm
+
+        for index in tqdm(indexes):
+            timesteps = torch.full((shape[0],), index)
+            noise = torch.randn_like(x_t)
+
+            predicted_noise, model_variance = self._model_mean_variance(x_t, timesteps)
+            predicted_x_start = self._x_start_from_noise(x_t, predicted_noise, timesteps)
+
+            predicted_mean = self.p_mean(x_t, predicted_x_start, timesteps)
+            predicted_variance = self.p_variance(timesteps, model_variance)
+
+            mask = (timesteps != 0).float().view(-1, 1, 1, 1)
+            x_t = predicted_mean + predicted_variance * noise * mask
+        return x_t
+
     def _x_start_from_noise(self, x_t: torch.Tensor, noise: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         gammas = self.factors.gammas[timesteps]
-        return 1 / torch.sqrt(gammas) * (x_t - torch.sqrt(1 - gammas) * noise)
+        x_start = 1 / torch.sqrt(gammas) * (x_t - torch.sqrt(1 - gammas) * noise)
+        x_start = torch.clamp(x_start, -1, 1)
+        return x_start
 
     def _model_mean_variance(self, x_t: torch.Tensor, timesteps: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         prediction = self.model(x_t, timesteps)
@@ -134,73 +156,74 @@ class GaussianDiffusion(LightningModule):
         return torch.optim.Adam(self.model.parameters(), lr=2e-4)
 
 
-class DummyModule(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def forward(self, x: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
-        return torch.rand_like(x)
-
-
-if __name__ == "__main__":
-    bs = 4
-    x = (torch.rand((bs, 1, 5, 5)) - 0.5) * 2
-    y = torch.randint(0, 10, (bs,))
-    t = torch.randint(0, 10, (bs,))
-    from diffusion.schedulers.linear_scheduler import LinearScheduler
-
-    timesteps = 1000
-    model = DummyModule()
-    scheduler = LinearScheduler(timesteps, 0.0001, 0.02)
-    variance_type = VarianceType.FIXED_SMALL
-    loss_type = LossType.MeanMSE
-
-    module = GaussianDiffusion(model, timesteps, loss_type, variance_type, scheduler)
-    timesteps = torch.randint(0, 4, (4,)).to(dtype=torch.long)
-    noise = torch.randn_like(x)
-
-    q_mean = module.q_mean(x, timesteps)
-    print(f"q_mean: {q_mean.squeeze()}")
-
-    q_variance = module.q_variance(timesteps)
-    print(f"q_variance: {q_variance.squeeze()}")
-
-    target_mean = module.q_posterior_mean(x, timesteps, noise)
-    print(f"target_mean: {target_mean.squeeze()}")
-
-    target_variance = module.q_posterior_variance(timesteps)
-    print(f"target_variance: {target_variance.squeeze()}")
-
-    target_log_variance = module.variance_manager.log_variance(variance_type, timesteps, module.factors)
-    print(f"target_log_variance: {target_log_variance.squeeze()}")
-    print(f"target_log_variance: {torch.log(target_variance).squeeze()}")
-
-    output = model(x, t)
-    model_mean, model_variance = module._model_mean_variance(x, t)
-
-    predicted_mean = module.p_mean(x, t, model_mean)
-    print(f"predicted_mean: {predicted_mean.squeeze()}")
-
-    predicted_variance = module.p_variance(t, model_variance)
-    print(f"predicted_variance: {predicted_variance.squeeze()}")
-
-    loss = module.loss_manager.forward(
-        LossType.MeanMSE, t, module.factors, target_mean, target_variance, predicted_mean, predicted_variance
-    )
-    print(f"Mse loss: {loss}")
-
-    loss = module.loss_manager.forward(
-        LossType.SIMPLE_MSE, t, module.factors, target_mean, target_variance, predicted_mean, predicted_variance
-    )
-    print(f"SimpleMse loss: {loss}")
-
-    loss = module.loss_manager.forward(
-        LossType.VARIATIONAL_BOUND, t, module.factors, target_mean, target_variance, predicted_mean, predicted_variance
-    )
-    print(f"VariationalBound loss: {loss}")
-
-    loss = module.model_step(x)
-    print(f"Model step loss: {loss}")
+#
+# class DummyModule(nn.Module):
+#     def __init__(self) -> None:
+#         super().__init__()
+#
+#     def forward(self, x: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
+#         return torch.rand_like(x)
+#
+#
+# if __name__ == "__main__":
+#     bs = 4
+#     x = (torch.rand((bs, 1, 5, 5)) - 0.5) * 2
+#     y = torch.randint(0, 10, (bs,))
+#     t = torch.randint(0, 10, (bs,))
+#     from diffusion.schedulers.linear_scheduler import LinearScheduler
+#
+#     timesteps = 1000
+#     model = DummyModule()
+#     scheduler = LinearScheduler(timesteps, 0.0001, 0.02)
+#     variance_type = VarianceType.FIXED_SMALL
+#     loss_type = LossType.MeanMSE
+#
+#     module = GaussianDiffusion(model, timesteps, loss_type, variance_type, scheduler)
+#     timesteps = torch.randint(0, 4, (4,)).to(dtype=torch.long)
+#     noise = torch.randn_like(x)
+#
+#     q_mean = module.q_mean(x, timesteps)
+#     print(f"q_mean: {q_mean.squeeze()}")
+#
+#     q_variance = module.q_variance(timesteps)
+#     print(f"q_variance: {q_variance.squeeze()}")
+#
+#     target_mean = module.q_posterior_mean(x, timesteps, noise)
+#     print(f"target_mean: {target_mean.squeeze()}")
+#
+#     target_variance = module.q_posterior_variance(timesteps)
+#     print(f"target_variance: {target_variance.squeeze()}")
+#
+#     target_log_variance = module.variance_manager.log_variance(variance_type, timesteps, module.factors)
+#     print(f"target_log_variance: {target_log_variance.squeeze()}")
+#     print(f"target_log_variance: {torch.log(target_variance).squeeze()}")
+#
+#     output = model(x, t)
+#     model_mean, model_variance = module._model_mean_variance(x, t)
+#
+#     predicted_mean = module.p_mean(x, t, model_mean)
+#     print(f"predicted_mean: {predicted_mean.squeeze()}")
+#
+#     predicted_variance = module.p_variance(t, model_variance)
+#     print(f"predicted_variance: {predicted_variance.squeeze()}")
+#
+#     loss = module.loss_manager.forward(
+#         LossType.MeanMSE, t, module.factors, target_mean, target_variance, predicted_mean, predicted_variance
+#     )
+#     print(f"Mse loss: {loss}")
+#
+#     loss = module.loss_manager.forward(
+#         LossType.SIMPLE_MSE, t, module.factors, target_mean, target_variance, predicted_mean, predicted_variance
+#     )
+#     print(f"SimpleMse loss: {loss}")
+#
+#     loss = module.loss_manager.forward(
+#         LossType.VARIATIONAL_BOUND, t, module.factors, target_mean, target_variance, predicted_mean, predicted_variance
+#     )
+#     print(f"VariationalBound loss: {loss}")
+#
+#     loss = module.model_step(x)
+#     print(f"Model step loss: {loss}")
 
 
 # class Diffusion(nn.Module):
