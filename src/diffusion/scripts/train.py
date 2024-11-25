@@ -1,15 +1,14 @@
 import hydra
 import rootutils
-from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
-from lightning.pytorch.loggers import Logger
-from omegaconf import DictConfig
-
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
 from diffusion.utils.logging_utils import log_hyperparameters
 from diffusion.utils.metric_utils import get_metric_value
 from diffusion.utils.ranked_logger import RankedLogger
 from diffusion.utils.task_wrapper import task_wrapper
+from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
+from lightning.pytorch.loggers import Logger
+from omegaconf import DictConfig
 
 
 root_path = rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=False)
@@ -26,11 +25,11 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
 
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
-    datamodule.prepare_data()
-    datamodule.setup()
+    # datamodule.prepare_data()
+    # datamodule.setup()
 
-    log.info(f"Instantiating model <{cfg.model._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.model)
+    log.info(f"Instantiating model <{cfg.diffusion._target_}>")
+    model: LightningModule = hydra.utils.instantiate(cfg.diffusion)
 
     log.info("Instantiating callbacks...")
     callbacks: list[Callback] = instantiate_callbacks(cfg.get("callbacks"))
