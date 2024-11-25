@@ -15,9 +15,10 @@ defaults:
   - scheduler: linear
   - variance: fixed_small
 
-in_channels: 1
 timesteps: 1000
 samples: 4
+in_channels: 1
+dim: 32
 
 task_name: "sample"
 

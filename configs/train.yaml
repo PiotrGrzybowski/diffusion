@@ -30,6 +30,7 @@ defaults:
   - debug: null
 
 in_channels: 1
+dim: 28
 timesteps: 1000
 # task name, determines output directory path
 task_name: "train"
