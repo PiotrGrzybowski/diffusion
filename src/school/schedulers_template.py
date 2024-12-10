@@ -1,0 +1,17 @@
+from abc import ABC, abstractmethod
+
+import torch
+
+
+class Scheduler(ABC):
+    @abstractmethod
+    def schedule(self) -> torch.Tensor:
+        pass
+
+
+class LinearScheduler(Scheduler):
+    def __init__(self, timesteps: int, start: float, end: float) -> None:
+        raise NotImplementedError("LinearScheduler is not implemented yet.")
+
+    def schedule(self) -> torch.Tensor:
+        raise NotImplementedError("LinearScheduler is not implemented yet.")

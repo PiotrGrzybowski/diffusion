@@ -4,3 +4,4 @@ scheduler: ${scheduler}
 loss_type: ${loss}
 variance_type: ${variance}
 model: ${model}
+in_channels: ${in_channels}
