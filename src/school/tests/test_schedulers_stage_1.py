@@ -42,7 +42,6 @@ def test_linear_scheduler_schedule_values():
 
 def test_linear_scheduler_edge_cases():
     """Test edge cases for the LinearScheduler."""
-    # Case: Single timestep
     timesteps = 1
     start = 0.5
     end = 0.5

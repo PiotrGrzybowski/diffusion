@@ -11,7 +11,7 @@ class Scheduler(ABC):
 
 class LinearScheduler(Scheduler):
     def __init__(self, timesteps: int, start: float, end: float) -> None:
-        pass
+        raise NotImplementedError("LinearScheduler is not implemented yet.")
 
     def schedule(self) -> torch.Tensor:
-        pass
+        raise NotImplementedError("LinearScheduler is not implemented yet.")
