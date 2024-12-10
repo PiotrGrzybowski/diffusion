@@ -3,4 +3,4 @@ dataset_name: mnist
 path: /tmp/data
 batch_size: 128
 num_workers: 0
-shape: [1, 28, 28]
+# shape: [1, 28, 28]
