@@ -62,12 +62,14 @@ def mean_simple_mse_loss(predicted_mean: torch.Tensor, target_mean: torch.Tensor
 
 def variational_bound_loss(
     target_mean: torch.Tensor,
-    target_variance: torch.Tensor,
+    target_log_variance: torch.Tensor,
     predicted_mean: torch.Tensor,
-    predicted_variance: torch.Tensor,
+    predicted_log_variance: torch.Tensor,
     timesteps: torch.Tensor,
 ) -> torch.Tensor:
-    loss = gaussian_kl(target_mean, target_variance, predicted_mean, predicted_variance)
+    loss = gaussian_kl(target_mean, target_log_variance, predicted_mean, predicted_log_variance)
+
+    predicted_variance = torch.exp(predicted_log_variance)
     decoder_nnl = -discretized_gaussian_log_likelihood(target_mean, predicted_mean, predicted_variance)
     idx = torch.where(timesteps == 0)
     loss[idx] = decoder_nnl[idx]

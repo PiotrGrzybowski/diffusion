@@ -63,7 +63,6 @@ class GaussianDiffusion(LightningModule):
         return self.variance_manager.log_variance(self.variance_type, timesteps, self.factors, prediction)
 
     def q_sample(self, x_start: torch.Tensor, timesteps: torch.Tensor, noise: torch.Tensor | None = None) -> torch.Tensor:
-        """Samples x_t from x_start for specified timesteps."""
         if noise is None:
             noise = torch.randn_like(x_start)
 
@@ -78,16 +77,12 @@ class GaussianDiffusion(LightningModule):
         target_mean = self.q_posterior_mean(x_t, x_start, timesteps)
         target_log_variance = self.q_posterior_log_variance(timesteps)
 
-        # target_variance = self.q_posterior_variance(timesteps)
         prediction = self.model(x_t, timesteps)
         model_noise = self._model_noise(prediction)
         model_log_variance = self._model_log_variance(prediction)
 
-        # predicted_noise, model_variance = self._model_mean_variance(x_t, timesteps)
-
         predicted_x_start = self._x_start_from_noise(x_t, model_noise, timesteps)
         predicted_mean = self.p_mean(x_t, predicted_x_start, timesteps)
-        # predicted_variance = self.p_variance(timesteps, model_variance)
 
         predicted_log_variance = self.p_log_variance(timesteps, model_log_variance)
 
