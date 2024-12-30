@@ -4,9 +4,9 @@ from lightning import LightningModule
 from tqdm import tqdm
 
 from diffusion.diffusion_factors import Factors
-from diffusion.losses import LossManager, LossType
-from diffusion.schedulers.scheduler import Scheduler
-from diffusion.variances import VarianceManager, VarianceType
+from diffusion.losses import LossInputs, MeanMseSimple
+from diffusion.means import EpsilonMean, MeanInputs, MeanObjectives, MeanStrategy, XStartMean
+from diffusion.variances2 import FixedSmallVariance, VarianceInputs, VarianceStrategy
 
 
 class GaussianDiffusion(LightningModule):
@@ -14,21 +14,23 @@ class GaussianDiffusion(LightningModule):
         self,
         model: nn.Module,
         timesteps: int,
-        loss_type: LossType,
-        variance_type: VarianceType,
-        scheduler: Scheduler,
+        factors: Factors,
         in_channels: int = 1,
     ) -> None:
         super().__init__()
         self.model = model
-        self.factors = Factors(scheduler.schedule())
-        self.variance_type = variance_type
-        self.variance_manager = VarianceManager()
-        self.loss_type = loss_type
-        self.loss_manager = LossManager()
+        self.factors = factors
 
         self.timesteps_count = timesteps
         self.in_channels = in_channels
+
+        self.mean_strategy: MeanStrategy = EpsilonMean(self.factors)
+        self.variance_strategy: VarianceStrategy = FixedSmallVariance(self.factors)
+
+        self.posterior_variance_strategy: VarianceStrategy = FixedSmallVariance(self.factors)
+        self.posterior_mean_strategy: MeanStrategy = XStartMean(self.factors)
+
+        self.loss = MeanMseSimple(self.factors)
 
     def q_mean(self, x_start: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         return torch.sqrt(self.factors.gammas[timesteps]) * x_start
@@ -37,30 +39,34 @@ class GaussianDiffusion(LightningModule):
         return 1 - self.factors.gammas[timesteps]
 
     def q_posterior_mean(self, x_t: torch.Tensor, x_start: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
-        gammas = self.factors.gammas[timesteps]
-        gammas_prev = self.factors.gammas_prev[timesteps]
-        alphas = self.factors.alphas[timesteps]
-        betas = self.factors.betas[timesteps]
+        return self.posterior_mean_strategy.mean(MeanInputs(timesteps, x_t, x_start))
 
-        x_t_coeff = torch.sqrt(alphas) * (1 - gammas_prev) / (1 - gammas)
-        x_0_coeff = torch.sqrt(gammas_prev) * betas / (1 - gammas)
-
-        return x_t_coeff * x_t + x_0_coeff * x_start
+    def q_posterior_mean_objective(self, mean: torch.Tensor, x_start: torch.Tensor, epsilon: torch.Tensor) -> torch.Tensor:
+        return self.posterior_mean_strategy.mean_objective(MeanObjectives(mean, x_start, epsilon))
 
     def q_posterior_variance(self, timesteps: torch.Tensor) -> torch.Tensor:
-        return self.variance_manager.variance(VarianceType.FIXED_SMALL, timesteps, self.factors)
+        return self.posterior_variance_strategy.variance(VarianceInputs(timesteps, torch.empty()))
 
     def q_posterior_log_variance(self, timesteps: torch.Tensor) -> torch.Tensor:
-        return self.variance_manager.log_variance(VarianceType.FIXED_SMALL, timesteps, self.factors)
+        return self.posterior_variance_strategy.log_variance(VarianceInputs(timesteps, torch.empty()))
 
-    def p_mean(self, x_t: torch.Tensor, x_start: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
-        return self.q_posterior_mean(x_t, x_start, timesteps)
+    def p_mean(self, x_t: torch.Tensor, timesteps: torch.Tensor, mean_objective: torch.Tensor) -> torch.Tensor:
+        return self.mean_strategy.mean(MeanInputs(timesteps, x_t, mean_objective))
 
-    def p_variance(self, timesteps: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
-        return self.variance_manager.variance(self.variance_type, timesteps, self.factors, prediction)
+    def p_mean_objective(self, output: torch.Tensor) -> torch.Tensor:
+        return output[:, : self.in_channels]
 
-    def p_log_variance(self, timesteps: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
-        return self.variance_manager.log_variance(self.variance_type, timesteps, self.factors, prediction)
+    def p_variance_objective(self, output: torch.Tensor) -> torch.Tensor:
+        if output.size(1) > self.in_channels:
+            return output[:, self.in_channels :]
+        else:
+            return torch.empty(0)
+
+    def p_variance(self, timesteps: torch.Tensor, variance_objective: torch.Tensor) -> torch.Tensor:
+        return self.variance_strategy.variance(VarianceInputs(timesteps, variance_objective))
+
+    def p_log_variance(self, timesteps: torch.Tensor, variance_objective: torch.Tensor) -> torch.Tensor:
+        return self.variance_strategy.log_variance(VarianceInputs(timesteps, variance_objective))
 
     def q_sample(self, x_start: torch.Tensor, timesteps: torch.Tensor, noise: torch.Tensor | None = None) -> torch.Tensor:
         if noise is None:
@@ -74,29 +80,22 @@ class GaussianDiffusion(LightningModule):
 
         x_t = self.q_sample(x_start, timesteps, target_noise)
 
-        target_mean = self.q_posterior_mean(x_t, x_start, timesteps)
-        target_log_variance = self.q_posterior_log_variance(timesteps)
+        mean = self.q_posterior_mean(x_t, x_start, timesteps)
+        mean_objective = self.q_posterior_mean_objective(mean, x_start, target_noise)
+        variance = self.q_posterior_variance(timesteps)
+        log_variance = self.q_posterior_log_variance(timesteps)
 
         prediction = self.model(x_t, timesteps)
-        model_noise = self._model_noise(prediction)
-        model_log_variance = self._model_log_variance(prediction)
+        predicted_mean_objective = self.p_mean_objective(prediction)
+        predicted_mean = self.p_mean(x_t, timesteps, predicted_mean_objective)
 
-        predicted_x_start = self._x_start_from_noise(x_t, model_noise, timesteps)
-        predicted_mean = self.p_mean(x_t, predicted_x_start, timesteps)
+        predicted_variance_objective = self.p_variance_objective(prediction)
+        predicted_log_variance = self.p_log_variance(timesteps, predicted_variance_objective)
 
-        predicted_log_variance = self.p_log_variance(timesteps, model_log_variance)
-
-        loss = self.loss_manager.forward(
-            self.loss_type,
-            timesteps,
-            self.factors,
-            target_mean,
-            target_log_variance,
-            target_noise,
-            predicted_mean,
-            predicted_log_variance,
-            model_noise,
+        loss_inputs = LossInputs(
+            timesteps, mean, mean_objective, variance, log_variance, predicted_mean, predicted_mean_objective, predicted_log_variance
         )
+        loss = self.loss(loss_inputs)
 
         return loss
 
@@ -112,43 +111,18 @@ class GaussianDiffusion(LightningModule):
             timesteps = torch.full((shape[0],), index, device=self.device, dtype=torch.long)
             noise = torch.randn_like(x_t).to(device=self.device)
 
-            predicted_noise, model_variance = self._model_mean_variance(x_t, timesteps)
-            predicted_x_start = self._x_start_from_noise(x_t, predicted_noise, timesteps)
+            output = self.model(x_t, timesteps)
+            mean_objective = self.p_mean_objective(output)
+            predicted_mean = self.p_mean(x_t, timesteps, mean_objective)
 
-            predicted_mean = self.p_mean(x_t, predicted_x_start, timesteps)
-            predicted_variance = self.p_variance(timesteps, model_variance)
+            variance_objective = self.p_variance_objective(output)
+            predicted_variance = self.p_variance(timesteps, variance_objective)
 
             mask = (timesteps != 0).float().view(-1, 1, 1, 1)
             # TODO: use external sampler Manager as loss and variance.
             x_t = predicted_mean + torch.sqrt(predicted_variance) * noise * mask
         x_t = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
         return x_t
-
-    def _x_start_from_noise(self, x_t: torch.Tensor, noise: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
-        gammas = self.factors.gammas[timesteps]
-        x_start = 1 / torch.sqrt(gammas) * (x_t - torch.sqrt(1 - gammas) * noise)
-        x_start = torch.clamp(x_start, -1, 1)
-        return x_start
-
-    def _model_noise(self, prediction: torch.Tensor) -> torch.Tensor:
-        return prediction[:, : self.in_channels]
-
-    def _model_log_variance(self, prediction: torch.Tensor) -> torch.Tensor:
-        if self.variance_type in {VarianceType.TRAINABLE, VarianceType.TRAINABLE_RANGE}:
-            _ = prediction
-            return prediction[:, self.in_channels :]
-        else:
-            return torch.empty(0)
-
-    def _model_mean_variance(self, x_t: torch.Tensor, timesteps: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        prediction = self.model(x_t, timesteps)
-        if self.variance_type in {VarianceType.TRAINABLE, VarianceType.TRAINABLE_RANGE}:
-            predicted_noise = prediction[:, :3]
-            predicted_variance = prediction[:, 3:]
-        else:
-            predicted_noise = prediction
-            predicted_variance = torch.empty(0)
-        return predicted_noise, predicted_variance
 
     def training_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
