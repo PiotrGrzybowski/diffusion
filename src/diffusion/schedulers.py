@@ -1,9 +1,13 @@
+from typing import Protocol
+
 import torch
 
-from diffusion.schedulers.scheduler import Scheduler
+
+class Scheduler(Protocol):
+    def schedule(self) -> torch.Tensor: ...
 
 
-class LinearScheduler(Scheduler):
+class LinearScheduler:
     def __init__(self, timesteps: int, start: float, end: float) -> None:
         self.timesteps = timesteps
         self.start = start
