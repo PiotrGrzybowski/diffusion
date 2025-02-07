@@ -21,14 +21,14 @@ class LossInputs:
 
 
 class DiffusionLoss(Protocol):
-    def __call__(self, inputs: LossInputs) -> torch.Tensor: ...
+    def forward(self, inputs: LossInputs) -> torch.Tensor: ...
 
 
 class MeanMse:
     def __init__(self, factors: Factors):
         self.factors = factors
 
-    def __call__(self, inputs: LossInputs) -> torch.Tensor:
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
         scale = 1 / 2 * inputs.variance
 
         return (scale * mse_loss(inputs.predicted_mean, inputs.mean)).mean()
@@ -38,7 +38,7 @@ class MeanMseSimple:
     def __init__(self, factors: Factors):
         self.factors = factors
 
-    def __call__(self, inputs: LossInputs) -> torch.Tensor:
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
         return mse_loss(inputs.predicted_mean, inputs.mean)
 
 
@@ -46,7 +46,7 @@ class XStartMse:
     def __init__(self, factors: Factors):
         self.factors = factors
 
-    def __call__(self, inputs: LossInputs) -> torch.Tensor:
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
         scale = self.factors.gamma_prev * self.factors.betas**2 / (inputs.variance * (1 - self.factors.gammas) ** 2)
         return (scale * mse_loss(inputs.predicted_mean, inputs.mean)).mean()
 
@@ -55,7 +55,7 @@ class XStartMseSimple:
     def __init__(self, factors: Factors):
         self.factors = factors
 
-    def __call__(self, inputs: LossInputs) -> torch.Tensor:
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
         return mse_loss(inputs.predicted_mean_objective, inputs.mean_objective)
 
 
@@ -63,7 +63,7 @@ class NoiseMse:
     def __init__(self, factors: Factors):
         self.factors = factors
 
-    def __call__(self, inputs: LossInputs) -> torch.Tensor:
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
         alphas = self.factors.alphas
         betas = self.factors.betas
         gammas = self.factors.gammas
@@ -76,12 +76,12 @@ class NoiseMseSimple:
     def __init__(self, factors: Factors):
         self.factors = factors
 
-    def __call__(self, inputs: LossInputs) -> torch.Tensor:
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
         return mse_loss(inputs.predicted_mean_objective, inputs.mean_objective)
 
 
 class VariationalBound:
-    def __call__(self, inputs: LossInputs) -> torch.Tensor:
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
         loss = gaussian_kl(inputs.mean, inputs.log_variance, inputs.predicted_mean, inputs.predicted_log_variance)
 
         predicted_variance = torch.exp(inputs.predicted_log_variance)
@@ -90,3 +90,22 @@ class VariationalBound:
         loss[idx] = decoder_nnl[idx]
 
         return loss.mean()
+
+
+class HybridLoss:
+    def __init__(self, factors: Factors, mean_loss: DiffusionLoss, variance_loss: DiffusionLoss, omega: float):
+        self.factors = factors
+        self.mean_loss = mean_loss
+        self.variance_loss = variance_loss
+        self.omega = omega
+
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        frozen_mean = inputs.mean.detach()
+        frozen_mean_objective = inputs.mean_objective.detach()
+        mean_loss = self.mean_loss.forward(inputs)
+
+        inputs.mean = frozen_mean
+        inputs.mean_objective = frozen_mean_objective
+        variance_loss = self.variance_loss.forward(inputs)
+
+        return mean_loss + self.omega * variance_loss

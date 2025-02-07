@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from diffusion.schedulers.scheduler import Scheduler
+from diffusion.schedulers import Scheduler
 
 
 class Factors(nn.Module):

@@ -586,6 +586,7 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
     { name = "viztracer" },
+    { name = "watchdog" },
 ]
 
 [package.metadata]
@@ -620,6 +621,7 @@ dev = [
     { name = "pytest", specifier = ">=8.3.2" },
     { name = "ruff", specifier = ">=0.6.2" },
     { name = "viztracer", specifier = ">=0.17.1" },
+    { name = "watchdog" },
 ]
 
 [[package]]

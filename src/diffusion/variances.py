@@ -1,9 +1,80 @@
+from dataclasses import dataclass
 from enum import Enum
+from typing import Protocol
 
 import torch
 
 from diffusion.diffusion_factors import Factors
-from diffusion.schedulers.linear_scheduler import LinearScheduler
+from diffusion.schedulers import LinearScheduler
+
+
+@dataclass(frozen=True)
+class VarianceInputs:
+    timesteps: torch.Tensor
+    model_output: torch.Tensor | None = None
+
+
+class VarianceStrategy(Protocol):
+    def variance(self, inputs: VarianceInputs) -> torch.Tensor: ...
+
+    def log_variance(self, inputs: VarianceInputs) -> torch.Tensor: ...
+
+
+class FixedSmallVariance:
+    def __init__(self, factors: Factors) -> None:
+        self.factors = factors
+
+    def variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        betas = self.factors.betas[inputs.timesteps]
+        gammas = self.factors.gammas[inputs.timesteps]
+        gammas_prev = self.factors.gammas_prev[inputs.timesteps]
+
+        return betas * (1 - gammas_prev) / (1 - gammas)
+
+    def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        timesteps = torch.where(inputs.timesteps == 0, torch.tensor(1), inputs.timesteps)
+        inputs = VarianceInputs(timesteps, inputs.model_output)
+
+        variance = self.variance(inputs)
+        return torch.log(variance)
+
+
+class FixedLargeVariance:
+    def __init__(self, factors: Factors) -> None:
+        self.factors = factors
+
+    def variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        return self.factors.betas[inputs.timesteps]
+
+    def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        return torch.log(self.variance(inputs))
+
+
+class TrainableVariance:
+    def variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        if inputs.model_output is None:
+            raise ValueError("Model output must be provided for trainable variance")
+        return torch.exp(inputs.model_output)
+
+    def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        if inputs.model_output is None:
+            raise ValueError("Model output must be provided for trainable variance")
+        return inputs.model_output
+
+
+class TrainableRangeVariance:
+    def __init__(self, lower_variance: VarianceStrategy, upper_variance: VarianceStrategy) -> None:
+        self.lower_variance = lower_variance
+        self.uper_variance = upper_variance
+
+    def variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        return torch.exp(self.log_variance(inputs))
+
+    def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        if inputs.model_output is None:
+            raise ValueError("Model output must be provided for trainable range variance")
+        v = (inputs.model_output + 1) / 2
+        return v * self.uper_variance.log_variance(inputs) + (1 - v) * self.lower_variance.log_variance(inputs)
 
 
 class VarianceType(Enum):
@@ -131,48 +202,65 @@ class VarianceManager:
 if __name__ == "__main__":
     scheduler = LinearScheduler(1000, 0.0001, 0.02)
     timesteps = torch.tensor([8, 900])
-    factors = Factors(scheduler.schedule())
+    factors = Factors(scheduler)
+    torch.set_printoptions(precision=8)
 
-    variance = fixed_small_variance(factors, timesteps)
-    print(f"small variance: {variance.shape}, {variance.squeeze()}")
+    variance_old = fixed_small_variance(factors, timesteps)
+    variance_new = FixedSmallVariance(factors).variance(VarianceInputs(timesteps, torch.empty(0)))
 
-    variance = fixed_small_log_variance(factors, timesteps)
-    print(f"small log variance: {variance.shape}, {variance.squeeze()}")
+    result = torch.allclose(variance_old, variance_new)
+    if not result:
+        raise ValueError(f"Expected {variance_old}, but got {variance_new}")
 
-    variance = fixed_large_variance(factors, timesteps)
-    print(f"large variance: {variance.shape}, {variance.squeeze()}")
+    log_variance_old = fixed_small_log_variance(factors, timesteps)
+    log_variance_new = FixedSmallVariance(factors).log_variance(VarianceInputs(timesteps, torch.empty(0)))
+    result = torch.allclose(log_variance_old, log_variance_new)
+    if not result:
+        raise ValueError(f"Expected {log_variance_old}, but got {log_variance_new}")
 
-    variance = fixed_large_log_variance(factors, timesteps)
-    print(f"large log variance: {variance.shape}, {variance.squeeze()}")
+    variance_old = fixed_large_variance(factors, timesteps)
+    variance_new = FixedLargeVariance(factors).variance(VarianceInputs(timesteps, torch.empty(0)))
+    result = torch.allclose(variance_old, variance_new)
+    if not result:
+        raise ValueError(f"Expected {variance_old}, but got {variance_new}")
 
-    prediction = torch.randn((2, 1, 5, 5))
-    variance = trainable_variance(prediction)
-    print(f"trainable variance: {variance.shape}, {variance.squeeze()}")
+    log_variance_old = fixed_large_log_variance(factors, timesteps)
+    log_variance_new = FixedLargeVariance(factors).log_variance(VarianceInputs(timesteps, torch.empty(0)))
+    result = torch.allclose(log_variance_old, log_variance_new)
+    if not result:
+        raise ValueError(f"Expected {log_variance_old}, but got {log_variance_new}")
 
-    variance = trainable_log_variance(prediction)
-    print(f"trainable log variance: {variance.shape}, {variance.squeeze()}")
+    # prediction = torch.randn((2, 1, 2, 2))
+    prediction = torch.tensor(
+        [[[[-0.81177425, -1.56413877], [0.82801986, -0.39772224]]], [[[1.74248230, 0.52790087], [-0.64002794, -0.31274268]]]]
+    )
+    # prediction = torch.tensor([[[[1.43131948, -1.36195362], [1.07874191, 0.76396883]]]])
+    variance_old = trainable_variance(prediction)
+    variance_new = TrainableVariance().variance(VarianceInputs(torch.empty(0), prediction))
+    result = torch.allclose(variance_old, variance_new)
+    if not result:
+        raise ValueError(f"Expected {variance_old}, but got {variance_new}")
 
-    variance = trainable_range_variance(prediction, factors, timesteps)
-    print(f"trainable range variance: {variance.shape}, {variance.squeeze()}")
+    log_variance_old = trainable_log_variance(prediction)
+    log_variance_new = TrainableVariance().log_variance(VarianceInputs(torch.empty(0), prediction))
+    result = torch.allclose(log_variance_old, log_variance_new)
+    if not result:
+        raise ValueError(f"Expected {log_variance_old}, but got {log_variance_new}")
 
-    variance = trainable_range_log_variance(prediction, factors, timesteps)
-    print(f"trainable range log variance: {variance.shape}, {variance.squeeze()}")
+    variance_old = trainable_range_variance(prediction, factors, timesteps)
+    variance_new = TrainableRangeVariance(FixedSmallVariance(factors), FixedLargeVariance(factors)).variance(
+        VarianceInputs(timesteps, prediction)
+    )
+    print(variance_new)
 
-    manager = VarianceManager()
-    variance = manager.variance(VarianceType.FIXED_SMALL, timesteps, factors, torch.empty(0))
-    print(f"manager small variance: {variance.shape}, {variance.squeeze()}")
+    result = torch.allclose(variance_old, variance_new)
+    if not result:
+        raise ValueError(f"Expected {variance_old}, but got {variance_new}")
 
-    variance = manager.log_variance(VarianceType.FIXED_SMALL, timesteps, factors, torch.empty(0))
-    print(f"manager small log variance: {variance.shape}, {variance.squeeze()}")
-
-    variance = manager.variance(VarianceType.FIXED_LARGE, timesteps, factors, torch.empty(0))
-    print(f"manager large variance: {variance.shape}, {variance.squeeze()}")
-
-    variance = manager.log_variance(VarianceType.FIXED_LARGE, timesteps, factors, torch.empty(0))
-    print(f"manager large log variance: {variance.shape}, {variance.squeeze()}")
-
-    variance = manager.variance(VarianceType.TRAINABLE, timesteps, factors, prediction)
-    print(f"manager trainable variance: {variance.shape}, {variance.squeeze()}")
-
-    variance = manager.log_variance(VarianceType.TRAINABLE, timesteps, factors, prediction)
-    print(f"manager trainable log variance: {variance.shape}, {variance.squeeze()}")
+    log_variance_old = trainable_range_log_variance(prediction, factors, timesteps)
+    log_variance_new = TrainableRangeVariance(FixedSmallVariance(factors), FixedLargeVariance(factors)).log_variance(
+        VarianceInputs(timesteps, prediction)
+    )
+    result = torch.allclose(log_variance_old, log_variance_new)
+    if not result:
+        raise ValueError(f"Expected {log_variance_old}, but got {log_variance_new}")
