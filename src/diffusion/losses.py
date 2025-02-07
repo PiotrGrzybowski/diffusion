@@ -1,4 +1,5 @@
-from enum import Enum
+from dataclasses import dataclass
+from typing import Protocol
 
 import torch
 from torch.nn.functional import mse_loss
@@ -7,145 +8,104 @@ from diffusion.diffusion_factors import Factors
 from diffusion.gaussian_utils import discretized_gaussian_log_likelihood, gaussian_kl
 
 
-class LossType(Enum):
-    MEAN_MSE = "MeanMSE"
-    MEAN_SIMPLE_MSE = "MeanSimpleMSE"
-    NOISE_MSE = "NoiseMSE"
-    NOISE_SIMPLE_MSE = "NoiseSimpleMSE"
-    SIMPLE_MSE = "SimpleMSE"
-    VARIATIONAL_BOUND = "VariationalBound"
-    HYBRID = "Hybrid"
+@dataclass
+class LossInputs:
+    timesteps: torch.Tensor
+    mean: torch.Tensor
+    mean_objective: torch.Tensor
+    variance: torch.Tensor
+    log_variance: torch.Tensor
+    predicted_mean: torch.Tensor
+    predicted_mean_objective: torch.Tensor
+    predicted_log_variance: torch.Tensor
 
 
-def mse_mean_loss(predicted_mean: torch.Tensor, target_mean: torch.Tensor, factors: Factors, timesteps: torch.Tensor) -> torch.Tensor:
-    posterior_variance = factors.betas * (1 - factors.gammas_prev) / (1 - factors.gammas)
-    posterior_variance = torch.cat([posterior_variance[1].unsqueeze(0), posterior_variance[1:]])[timesteps]
-
-    scale = 1 / 2 * posterior_variance
-
-    return (scale * mse_loss(predicted_mean, target_mean)).mean()
+class DiffusionLoss(Protocol):
+    def forward(self, inputs: LossInputs) -> torch.Tensor: ...
 
 
-def simple_mse_mean_loss(predicted_mean: torch.Tensor, target_mean: torch.Tensor) -> torch.Tensor:
-    return mse_loss(predicted_mean, target_mean)
+class MeanMse:
+    def __init__(self, factors: Factors):
+        self.factors = factors
+
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        scale = 1 / 2 * inputs.variance
+
+        return (scale * mse_loss(inputs.predicted_mean, inputs.mean)).mean()
 
 
-def mse_noise_loss(predicted_noise: torch.Tensor, target_noise: torch.Tensor, factors: Factors, timesteps: torch.Tensor) -> torch.Tensor:
-    posterior_variance = factors.betas * (1 - factors.gammas_prev) / (1 - factors.gammas)
-    posterior_variance = torch.cat([posterior_variance[1].unsqueeze(0), posterior_variance[1:]])[timesteps]
-    alphas = factors.alphas[timesteps]
-    betas = factors.betas[timesteps]
-    gammas = factors.gammas[timesteps]
+class MeanMseSimple:
+    def __init__(self, factors: Factors):
+        self.factors = factors
 
-    scale = betas**2 / (2 * posterior_variance * alphas * (1 - gammas))
-    return (scale * mse_loss(predicted_noise, target_noise)).mean()
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        return mse_loss(inputs.predicted_mean, inputs.mean)
 
 
-def simple_mse_noise_loss(predicted_noise: torch.Tensor, target_noise: torch.Tensor) -> torch.Tensor:
-    return mse_loss(predicted_noise, target_noise)
+class XStartMse:
+    def __init__(self, factors: Factors):
+        self.factors = factors
+
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        scale = self.factors.gamma_prev * self.factors.betas**2 / (inputs.variance * (1 - self.factors.gammas) ** 2)
+        return (scale * mse_loss(inputs.predicted_mean, inputs.mean)).mean()
 
 
-def mean_mse_loss(predicted_mean: torch.Tensor, target_mean: torch.Tensor, factors: Factors, timesteps: torch.Tensor) -> torch.Tensor:
-    posterior_variance = factors.betas * (1 - factors.gammas_prev) / (1 - factors.gammas)
-    posterior_variance = torch.cat([posterior_variance[1].unsqueeze(0), posterior_variance[1:]])[timesteps]
-    alphas = factors.alphas[timesteps]
-    betas = factors.betas[timesteps]
-    gammas = factors.gammas[timesteps]
+class XStartMseSimple:
+    def __init__(self, factors: Factors):
+        self.factors = factors
 
-    scale = betas**2 / (2 * posterior_variance * alphas * (1 - gammas))
-    return (scale * mse_loss(predicted_mean, target_mean)).mean()
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        return mse_loss(inputs.predicted_mean_objective, inputs.mean_objective)
 
 
-def mean_simple_mse_loss(predicted_mean: torch.Tensor, target_mean: torch.Tensor) -> torch.Tensor:
-    return mse_loss(predicted_mean, target_mean)
+class NoiseMse:
+    def __init__(self, factors: Factors):
+        self.factors = factors
+
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        alphas = self.factors.alphas
+        betas = self.factors.betas
+        gammas = self.factors.gammas
+
+        scale = betas**2 / (2 * inputs.variance * alphas * (1 - gammas))
+        return (scale * mse_loss(inputs.predicted_mean_objective, inputs.mean_objective)).mean()
 
 
-def variational_bound_loss(
-    target_mean: torch.Tensor,
-    target_log_variance: torch.Tensor,
-    predicted_mean: torch.Tensor,
-    predicted_log_variance: torch.Tensor,
-    timesteps: torch.Tensor,
-) -> torch.Tensor:
-    loss = gaussian_kl(target_mean, target_log_variance, predicted_mean, predicted_log_variance)
+class NoiseMseSimple:
+    def __init__(self, factors: Factors):
+        self.factors = factors
 
-    predicted_variance = torch.exp(predicted_log_variance)
-    decoder_nnl = -discretized_gaussian_log_likelihood(target_mean, predicted_mean, predicted_variance)
-    idx = torch.where(timesteps == 0)
-    loss[idx] = decoder_nnl[idx]
-
-    return loss.mean()
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        return mse_loss(inputs.predicted_mean_objective, inputs.mean_objective)
 
 
-def hybrid_loss(
-    target_mean: torch.Tensor,
-    target_variance: torch.Tensor,
-    predicted_mean: torch.Tensor,
-    predicted_variance: torch.Tensor,
-    timesteps: torch.Tensor,
-) -> torch.Tensor:
-    simple = mean_simple_mse_loss(target_mean, predicted_mean)
-    variational = variational_bound_loss(target_mean, target_variance, predicted_mean, predicted_variance, timesteps)
-    return simple + 1e-3 * variational
+class VariationalBound:
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        loss = gaussian_kl(inputs.mean, inputs.log_variance, inputs.predicted_mean, inputs.predicted_log_variance)
+
+        predicted_variance = torch.exp(inputs.predicted_log_variance)
+        decoder_nnl = -discretized_gaussian_log_likelihood(inputs.mean, inputs.predicted_mean, predicted_variance)
+        idx = torch.where(inputs.timesteps == 0)
+        loss[idx] = decoder_nnl[idx]
+
+        return loss.mean()
 
 
-class LossManager:
-    def forward(
-        self,
-        loss_type: LossType,
-        timesteps: torch.Tensor,
-        factors: Factors,
-        target_mean: torch.Tensor,
-        target_variance: torch.Tensor,
-        target_noise: torch.Tensor,
-        predicted_mean: torch.Tensor,
-        predicted_variance: torch.Tensor,
-        predicted_noise: torch.Tensor,
-    ) -> torch.Tensor:
-        match loss_type:
-            case LossType.MEAN_MSE:
-                return mean_mse_loss(predicted_mean, target_mean, factors, timesteps)
-            case LossType.MEAN_SIMPLE_MSE:
-                return mean_simple_mse_loss(predicted_mean, target_mean)
-            case LossType.NOISE_MSE:
-                return mse_noise_loss(predicted_noise, target_noise, factors, timesteps)
-            case LossType.NOISE_SIMPLE_MSE:
-                return simple_mse_noise_loss(predicted_noise, target_noise)
-            case LossType.VARIATIONAL_BOUND:
-                return variational_bound_loss(target_mean, target_variance, predicted_mean, predicted_variance, timesteps)
-            case LossType.HYBRID:
-                return hybrid_loss(target_mean, target_variance, predicted_mean, predicted_variance, timesteps)
-            case _:
-                raise ValueError(f"Unknown loss type: {loss_type}")
+class HybridLoss:
+    def __init__(self, factors: Factors, mean_loss: DiffusionLoss, variance_loss: DiffusionLoss, omega: float):
+        self.factors = factors
+        self.mean_loss = mean_loss
+        self.variance_loss = variance_loss
+        self.omega = omega
 
+    def forward(self, inputs: LossInputs) -> torch.Tensor:
+        frozen_mean = inputs.mean.detach()
+        frozen_mean_objective = inputs.mean_objective.detach()
+        mean_loss = self.mean_loss.forward(inputs)
 
-#
-# if __name__ == "__main__":
-#     loss_manager = LossManager()
-#
-#     # Create dummy data
-#     target = torch.randn(4, 3, 64, 64)
-#     predicted = torch.randn(4, 3, 64, 64)
-#     timesteps = torch.randint(0, 3, (4,))
-#     scheduler = LinearScheduler(1000, 0.001, 0.02)
-#     factors = Factors(betas=scheduler.schedule())
-#
-#     # Test VariationalBoundLoss
-#     target_mean = torch.randn(4, 3, 64, 64)
-#     target_variance = torch.rand(4, 3, 64, 64).abs()
-#     predicted_mean = torch.randn(4, 3, 64, 64)
-#     predicted_variance = target_variance
-#
-#     loss = loss_manager.forward(
-#         LossType.VARIATIONAL_BOUND, timesteps, factors, target_mean, target_variance, predicted_mean, predicted_variance
-#     )
-#     print(f"VariationalBoundLoss: {loss}")
-#
-#     loss = loss_manager.forward(LossType.SIMPLE_MSE, timesteps, factors, target_mean, target_variance, predicted_mean, predicted_variance)
-#     print(f"SimpleMSELoss: {loss}")
-#
-#     loss = loss_manager.forward(LossType.MEAN_MSE, timesteps, factors, target_mean, target_variance, predicted_mean, predicted_variance)
-#     print(f"ScaledMSELoss: {loss}")
-#
-#     loss = loss_manager.forward(LossType.HYBRID, timesteps, factors, target_mean, target_variance, predicted_mean, predicted_variance)
-#     print(f"HybridLoss: {loss}")
+        inputs.mean = frozen_mean
+        inputs.mean_objective = frozen_mean_objective
+        variance_loss = self.variance_loss.forward(inputs)
+
+        return mean_loss + self.omega * variance_loss
