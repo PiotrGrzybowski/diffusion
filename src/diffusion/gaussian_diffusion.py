@@ -4,7 +4,7 @@ from lightning import LightningModule
 from tqdm import tqdm
 
 from diffusion.diffusion_factors import Factors
-from diffusion.losses import LossInputs, MeanMseSimple
+from diffusion.losses import LossInputs, MseMeanDirectSimple
 from diffusion.means import EpsilonMean, MeanInputs, MeanObjectives, MeanStrategy, XStartMean
 from diffusion.variances import FixedSmallVariance, VarianceInputs, VarianceStrategy
 
@@ -30,7 +30,7 @@ class GaussianDiffusion(LightningModule):
         self.posterior_variance_strategy: VarianceStrategy = FixedSmallVariance(self.factors)
         self.posterior_mean_strategy: MeanStrategy = XStartMean(self.factors)
 
-        self.loss = MeanMseSimple(self.factors)
+        self.loss = MseMeanDirectSimple(self.factors)
 
     def q_mean(self, x_start: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         return torch.sqrt(self.factors.gammas[timesteps]) * x_start
