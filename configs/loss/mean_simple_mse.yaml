@@ -1,2 +1,0 @@
-_target_: diffusion.losses.LossType
-_args_: ["MeanSimpleMSE"]

@@ -1,0 +1,20 @@
+defaults:
+  - _self_
+  - scheduler: linear
+  - mean@posterior_mean: xstart
+  - variance@posterior_variance: fixed_small
+  - mean@model_mean: epsilon
+  - variance@model_variance: fixed_large
+  - loss: mse_mean_epsilon
+  - model: small_unet
+
+_target_: diffusion.gaussian_diffusion.GaussianDiffusion
+timesteps: ${timesteps}
+scheduler: ${scheduler}
+posterior_mean: ${posterior_mean}
+posterior_variance: ${posterior_variance}
+model_mean: ${model_mean}
+model_variance: ${model_variance}
+loss: ${loss}
+model: ${model}
+in_channels: ${in_channels}

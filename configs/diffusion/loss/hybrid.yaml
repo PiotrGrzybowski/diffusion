@@ -1,0 +1,6 @@
+_target_: diffusion.losses.Hybrid
+mean_loss:
+  _target_: diffusion.losses.MseMeanEpsilonSimple
+variance_loss: 
+  _target_: diffusion.losses.VLB
+omega: 0.001
