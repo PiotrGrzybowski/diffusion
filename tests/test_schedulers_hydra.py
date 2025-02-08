@@ -1,17 +1,18 @@
 import pytest
 from diffusion.schedulers import LinearScheduler
-from hydra import compose, initialize
+from hydra import compose, initialize_config_dir
 from hydra.utils import instantiate
 from omegaconf import open_dict
+from rootutils import find_root
 
 
 @pytest.fixture
-def config_path():
-    return "../configs/diffusion/scheduler"
+def config_dir() -> str:
+    return str(find_root(__file__, indicator="pyproject.toml") / "configs" / "diffusion" / "scheduler")
 
 
-def test_linear_scheduler_instantiate(config_path: str):
-    with initialize(version_base="1.3", config_path=config_path):
+def test_linear_scheduler_instantiate(config_dir: str):
+    with initialize_config_dir(version_base="1.3", config_dir=config_dir):
         cfg = compose(config_name="linear.yaml")
 
     with open_dict(cfg):

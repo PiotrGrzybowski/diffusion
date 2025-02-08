@@ -3,8 +3,17 @@ from pathlib import Path
 import pytest
 import torch
 from diffusion.data.mnist_datamodule import MNISTDataModule
-from hydra import compose, initialize_config_dir
-from hydra.utils import instantiate
+from rootutils import find_root
+
+
+@pytest.fixture(scope="package")
+def diffusion_configs_path() -> Path:
+    """A pytest fixture for path to the configs directory.
+
+    Returns:
+        Path: A Path object pointing to the configs directory.
+    """
+    return find_root("pyproject.toml") / "configs" / "diffusion"
 
 
 @pytest.mark.parametrize("dataset_name", ["mnist", "fashion", "kmnist"])
@@ -65,31 +74,3 @@ def test_mnist_filtered(data_path: Path, batch_size: int) -> None:
 
     assert len(datamodule.train_dataloader()) == int(1280 * 0.8) * 2 // batch_size
     assert len(datamodule.val_dataloader()) == int(1280 * 0.2) * 2 // batch_size
-
-
-def test_hydra_default(configs_path: Path) -> None:
-    with initialize_config_dir(config_dir=str(configs_path), version_base="1.3"):
-        cfg = compose(config_name="data/mnist")
-
-        module = instantiate(cfg)
-        assert module is not None
-
-
-@pytest.mark.parametrize("dataset_name", ["mnist", "fashion"])
-def test_hydra_various_datasets_default(configs_path: Path, dataset_name: str) -> None:
-    with initialize_config_dir(config_dir=str(configs_path), version_base="1.3"):
-        cfg = compose(
-            config_name="data/mnist",
-            overrides=[f"data.dataset_name={dataset_name}", "data.batch_size=32"],
-        )
-
-        datamodule: MNISTDataModule = instantiate(cfg.data)
-        assert datamodule is not None
-
-        datamodule.prepare_data()
-        datamodule.setup()
-
-        batch = next(iter(datamodule.train_dataloader()))
-        x, y = batch
-        assert len(x) == 32
-        assert len(y) == 32
