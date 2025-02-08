@@ -61,7 +61,8 @@ class GaussianDiffusion(LightningModule):
         return self.posterior_variance.log_variance(inputs)
 
     def q_posterior_variance_objective(self, timesteps: torch.Tensor) -> torch.Tensor:
-        return self.posterior_variance.log_variance(VarianceInputs(self.factors, timesteps))  # NOTE: Variance vs Log Variance?
+        inputs = VarianceInputs(self.factors, timesteps)
+        return self.posterior_variance.log_variance(inputs)
 
     def p_mean(self, timesteps: torch.Tensor, x_t: torch.Tensor, mean_objective: torch.Tensor) -> torch.Tensor:
         inputs = MeanInputs(self.factors, timesteps, x_t, mean_objective)
@@ -70,20 +71,20 @@ class GaussianDiffusion(LightningModule):
     def p_mean_objective(self, model_output: torch.Tensor) -> torch.Tensor:
         return model_output[:, : self.in_channels]
 
+    def p_variance(self, timesteps: torch.Tensor, variance_objective: torch.Tensor) -> torch.Tensor:
+        return self.model_variance.variance(VarianceInputs(self.factors, timesteps, variance_objective))
+
+    def p_log_variance(self, timesteps: torch.Tensor, variance_objective: torch.Tensor) -> torch.Tensor:
+        return self.model_variance.log_variance(VarianceInputs(self.factors, timesteps, variance_objective))
+
     def p_variance_objective(self, model_output: torch.Tensor) -> torch.Tensor:
         if model_output.size(1) > self.in_channels:
             return model_output[:, self.in_channels :]
         else:
             return torch.empty(0)
 
-    def p_variance(self, timesteps: torch.Tensor, variance_objective: torch.Tensor) -> torch.Tensor:
-        return self.model_variance.variance(VarianceInputs(timesteps, variance_objective))
-
-    def p_log_variance(self, timesteps: torch.Tensor, variance_objective: torch.Tensor) -> torch.Tensor:
-        return self.model_variance.log_variance(VarianceInputs(timesteps, variance_objective))
-
     def q_sample(self, timesteps: torch.Tensor, x_start: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
-        return self.q_mean(x_start, timesteps) + torch.sqrt(self.q_variance(timesteps)) * noise
+        return self.q_mean(timesteps, x_start) + torch.sqrt(self.q_variance(timesteps)) * noise
 
     def model_step(self, x_start: torch.Tensor) -> torch.Tensor:
         timesteps = torch.randint(0, self.timesteps, (x_start.size(0),)).to(device=x_start.device, dtype=torch.long)
@@ -94,8 +95,6 @@ class GaussianDiffusion(LightningModule):
         mean = self.q_posterior_mean(timesteps, x_t, x_start)
         mean_objective = self.q_posterior_mean_objective(mean, x_start, target_noise)
         variance = self.q_posterior_variance(timesteps)
-        variance_objective = self.q_posterior_variance_objective(timesteps)
-
         log_variance = self.q_posterior_log_variance(timesteps)
 
         prediction = self.model(x_t, timesteps)
@@ -106,8 +105,17 @@ class GaussianDiffusion(LightningModule):
         predicted_log_variance = self.p_log_variance(timesteps, predicted_variance_objective)
 
         loss_inputs = LossInputs(
-            timesteps, mean, mean_objective, variance, log_variance, predicted_mean, predicted_mean_objective, predicted_log_variance
+            self.factors,
+            timesteps,
+            mean,
+            mean_objective,
+            variance,
+            log_variance,
+            predicted_mean,
+            predicted_mean_objective,
+            predicted_log_variance,
         )
+
         loss = self.loss.forward(loss_inputs)
 
         return loss
