@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import torch
 
@@ -8,9 +8,10 @@ from diffusion.diffusion_factors import Factors
 
 @dataclass(frozen=True)
 class MeanInputs:
+    factors: Factors
     timesteps: torch.Tensor
-    model_output: torch.Tensor
     x_t: torch.Tensor
+    mean_objective: torch.Tensor
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class MeanObjectives:
     epsilon: torch.Tensor
 
 
+@runtime_checkable
 class MeanStrategy(Protocol):
     def mean(self, inputs: MeanInputs) -> torch.Tensor: ...
 
@@ -28,24 +30,23 @@ class MeanStrategy(Protocol):
 
 class DirectMean:
     def mean(self, inputs: MeanInputs) -> torch.Tensor:
-        return inputs.model_output
+        return inputs.mean_objective
 
     def mean_objective(self, inputs: MeanObjectives) -> torch.Tensor:
         return inputs.mean
 
 
 class XStartMean:
-    def __init__(self, factors: Factors) -> None:
-        self.factors = factors
-
     def mean(self, inputs: MeanInputs) -> torch.Tensor:
         timesteps = inputs.timesteps
-        gammas = self.factors.gammas[timesteps]
-        gammas_prev = self.factors.gammas_prev[timesteps]
-        alphas = self.factors.alphas[timesteps]
-        betas = self.factors.betas[timesteps]
+        factors = inputs.factors
 
-        x_0 = inputs.model_output
+        gammas = factors.gammas[timesteps]
+        gammas_prev = factors.gammas_prev[timesteps]
+        alphas = factors.alphas[timesteps]
+        betas = factors.betas[timesteps]
+
+        x_0 = inputs.mean_objective
         x_t = inputs.x_t
 
         x_t_coeff = torch.sqrt(alphas) * (1 - gammas_prev) / (1 - gammas)
@@ -56,30 +57,18 @@ class XStartMean:
     def mean_objective(self, inputs: MeanObjectives) -> torch.Tensor:
         return inputs.x_start
 
-    def _mean_from_x_start(self, timesteps: torch.Tensor, x_t: torch.Tensor, x_0: torch.Tensor) -> torch.Tensor:
-        gammas = self.factors.gammas[timesteps]
-        gammas_prev = self.factors.gammas_prev[timesteps]
-        alphas = self.factors.alphas[timesteps]
-        betas = self.factors.betas[timesteps]
-
-        x_t_coeff = torch.sqrt(alphas) * (1 - gammas_prev) / (1 - gammas)
-        x_0_coeff = torch.sqrt(gammas_prev) * betas / (1 - gammas)
-
-        return x_t_coeff * x_t + x_0_coeff * x_0
-
 
 class EpsilonMean:
-    def __init__(self, factors: Factors) -> None:
-        self.factors = factors
-
     def mean(self, inputs: MeanInputs) -> torch.Tensor:
         timesteps = inputs.timesteps
-        alphas = self.factors.alphas[timesteps]
-        betas = self.factors.betas[timesteps]
-        gammas = self.factors.gammas[timesteps]
+        factors = inputs.factors
+
+        alphas = factors.alphas[timesteps]
+        betas = factors.betas[timesteps]
+        gammas = factors.gammas[timesteps]
 
         x_t = inputs.x_t
-        epsilon = inputs.model_output
+        epsilon = inputs.mean_objective
 
         return 1 / torch.sqrt(alphas) * (x_t - betas / torch.sqrt(1 - gammas) * epsilon)
 

@@ -1,4 +1,0 @@
-_target_: diffusion.schedulers.linear_scheduler.LinearScheduler
-timesteps: ${timesteps} 
-start: 0.0001
-end: 0.02

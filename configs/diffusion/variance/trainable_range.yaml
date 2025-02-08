@@ -1,0 +1,5 @@
+_target_: diffusion.variances.TrainableRangeVariance
+lower_variance:
+  _target_: diffusion.variances.FixedSmallVariance
+upper_variance:
+  _target_: diffusion.variances.FixedLargeVariance
