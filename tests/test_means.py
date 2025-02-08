@@ -12,7 +12,7 @@ def inputs():
     timesteps = torch.tensor([8, 900], dtype=torch.long)
     x_t = torch.tensor([[[[0.55517131]]], [[[0.62717044]]]])
 
-    return MeanInputs(factors, timesteps, model_output, x_t)
+    return MeanInputs(factors, timesteps, x_t, model_output)
 
 
 def test_direct_mean_strategy(inputs: MeanInputs):

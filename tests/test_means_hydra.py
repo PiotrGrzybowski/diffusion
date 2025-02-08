@@ -6,7 +6,7 @@ from hydra.utils import instantiate
 
 @pytest.fixture
 def config_path():
-    return "../configs/mean"
+    return "../configs/diffusion/mean"
 
 
 def test_direct_mean_instantiate(config_path: str):

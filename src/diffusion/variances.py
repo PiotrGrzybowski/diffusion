@@ -1,16 +1,19 @@
-from typing import Protocol
+from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
 
 import torch
 
 from diffusion.diffusion_factors import Factors
 
 
+@dataclass
 class VarianceInputs:
     factors: Factors
     timesteps: torch.Tensor
     model_output: torch.Tensor | None = None
 
 
+@runtime_checkable
 class VarianceStrategy(Protocol):
     def variance(self, inputs: VarianceInputs) -> torch.Tensor: ...
 

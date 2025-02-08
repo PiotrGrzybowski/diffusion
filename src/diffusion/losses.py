@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import torch
 from torch.nn.functional import mse_loss
@@ -19,6 +19,7 @@ class LossInputs:
     predicted_log_variance: torch.Tensor
 
 
+@runtime_checkable
 class DiffusionLoss(Protocol):
     def forward(self, inputs: LossInputs) -> torch.Tensor: ...
 

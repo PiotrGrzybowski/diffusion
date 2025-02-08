@@ -6,7 +6,7 @@ from hydra.utils import instantiate
 
 @pytest.fixture
 def config_path():
-    return "../configs/variance"
+    return "../configs/diffusion/variance"
 
 
 def test_direct_variance_variance_instantiate(config_path: str):

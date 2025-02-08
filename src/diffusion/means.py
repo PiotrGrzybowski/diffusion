@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import torch
 
@@ -10,8 +10,8 @@ from diffusion.diffusion_factors import Factors
 class MeanInputs:
     factors: Factors
     timesteps: torch.Tensor
-    model_output: torch.Tensor
     x_t: torch.Tensor
+    mean_objective: torch.Tensor
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,7 @@ class MeanObjectives:
     epsilon: torch.Tensor
 
 
+@runtime_checkable
 class MeanStrategy(Protocol):
     def mean(self, inputs: MeanInputs) -> torch.Tensor: ...
 
@@ -29,7 +30,7 @@ class MeanStrategy(Protocol):
 
 class DirectMean:
     def mean(self, inputs: MeanInputs) -> torch.Tensor:
-        return inputs.model_output
+        return inputs.mean_objective
 
     def mean_objective(self, inputs: MeanObjectives) -> torch.Tensor:
         return inputs.mean
@@ -45,7 +46,7 @@ class XStartMean:
         alphas = factors.alphas[timesteps]
         betas = factors.betas[timesteps]
 
-        x_0 = inputs.model_output
+        x_0 = inputs.mean_objective
         x_t = inputs.x_t
 
         x_t_coeff = torch.sqrt(alphas) * (1 - gammas_prev) / (1 - gammas)
@@ -67,7 +68,7 @@ class EpsilonMean:
         gammas = factors.gammas[timesteps]
 
         x_t = inputs.x_t
-        epsilon = inputs.model_output
+        epsilon = inputs.mean_objective
 
         return 1 / torch.sqrt(alphas) * (x_t - betas / torch.sqrt(1 - gammas) * epsilon)
 

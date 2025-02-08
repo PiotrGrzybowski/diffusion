@@ -1,7 +1,0 @@
-_target_: diffusion.gaussian_diffusion.GaussianDiffusion
-timesteps: ${timesteps}
-scheduler: ${scheduler}
-loss_type: ${loss}
-variance_type: ${variance}
-model: ${model}
-in_channels: ${in_channels}

@@ -6,21 +6,18 @@ from diffusion.variances import DirectVariance, FixedLargeVariance, FixedSmallVa
 
 
 @pytest.fixture
-def factors():
-    return Factors(LinearScheduler(1000, 0.0001, 0.02))
-
-
-@pytest.fixture
 def inputs():
+    factors = Factors(LinearScheduler(1000, 0.0001, 0.02))
     model_output = torch.tensor(
         [[[[-0.81177425, -1.56413877], [0.82801986, -0.39772224]]], [[[1.74248230, 0.52790087], [-0.64002794, -0.31274268]]]]
     )
+    timesteps = torch.tensor([8, 900], dtype=torch.long)
 
-    return VarianceInputs(torch.tensor([8, 900], dtype=torch.long), model_output)
+    return VarianceInputs(factors, timesteps, model_output)
 
 
-def test_fixed_small_strategy(factors: Factors, inputs: VarianceInputs):
-    strategy = FixedSmallVariance(factors)
+def test_fixed_small_strategy(inputs: VarianceInputs):
+    strategy = FixedSmallVariance()
 
     variance = strategy.variance(inputs)
     log_variance = strategy.log_variance(inputs)
@@ -32,8 +29,8 @@ def test_fixed_small_strategy(factors: Factors, inputs: VarianceInputs):
     assert torch.allclose(log_variance.squeeze(), target_log_variance), "Fixed small log variance mismatch"
 
 
-def test_fixed_large_strategy(factors: Factors, inputs: VarianceInputs):
-    strategy = FixedLargeVariance(factors)
+def test_fixed_large_strategy(inputs: VarianceInputs):
+    strategy = FixedLargeVariance()
 
     variance = strategy.variance(inputs)
     log_variance = strategy.log_variance(inputs)
@@ -60,8 +57,8 @@ def test_trainable_strategy(inputs: VarianceInputs):
     assert torch.allclose(log_variance, target_log_variance), "Trainable log variance mismatch"
 
 
-def test_trainable_range_strategy(factors: Factors, inputs: VarianceInputs):
-    strategy = TrainableRangeVariance(FixedSmallVariance(factors), FixedLargeVariance(factors))
+def test_trainable_range_strategy(inputs: VarianceInputs):
+    strategy = TrainableRangeVariance(FixedSmallVariance(), FixedLargeVariance())
 
     variance = strategy.variance(inputs)
     log_variance = strategy.log_variance(inputs)

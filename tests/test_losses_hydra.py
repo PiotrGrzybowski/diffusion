@@ -15,7 +15,7 @@ from hydra.utils import instantiate
 
 @pytest.fixture
 def config_path():
-    return "../configs/loss"
+    return "../configs/diffusion/loss"
 
 
 def test_mse_mean_direct_loss_instantiate(config_path: str):

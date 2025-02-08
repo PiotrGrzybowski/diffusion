@@ -14,6 +14,7 @@ defaults:
   - loss: noise_simple_mse
   - scheduler: linear
   - variance: fixed_small
+  - mean: default
 
   # experiment configs allow for version control of specific hyperparameters
   # e.g. best hyperparameters for given model and datamodule

@@ -32,6 +32,16 @@ def configs_path() -> Path:
 
 
 @pytest.fixture(scope="package")
+def diffusion_configs_path() -> Path:
+    """A pytest fixture for path to the configs directory.
+
+    Returns:
+        Path: A Path object pointing to the configs directory.
+    """
+    return find_root("pyproject.toml") / "configs" / "diffusion"
+
+
+@pytest.fixture(scope="package")
 def cfg_train_global() -> DictConfig:
     """A pytest fixture for setting up a default Hydra DictConfig for training.
 
