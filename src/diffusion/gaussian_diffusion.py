@@ -136,7 +136,7 @@ class GaussianDiffusion(LightningModule):
 
             output = self.model(x_t, timesteps)
             mean_objective = self.p_mean_objective(output)
-            predicted_mean = self.p_mean(x_t, timesteps, mean_objective)
+            predicted_mean = self.p_mean(timesteps, x_t, mean_objective)
 
             variance_objective = self.p_variance_objective(output)
             predicted_variance = self.p_variance(timesteps, variance_objective)
