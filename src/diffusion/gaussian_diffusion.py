@@ -25,6 +25,7 @@ class GaussianDiffusion(LightningModule):
     ) -> None:
         super().__init__()
         self.model = model
+        self.scheduler = scheduler
         self.factors = Factors(scheduler)
 
         self.timesteps = timesteps
@@ -49,8 +50,9 @@ class GaussianDiffusion(LightningModule):
         return self.posterior_mean.mean(inputs)
 
     def q_posterior_mean_objective(self, mean: torch.Tensor, x_start: torch.Tensor, epsilon: torch.Tensor) -> torch.Tensor:
+        """Tricky, so in order to idendify whether mean, x_start or epsilone is right mean_objective we need to evaluate it from model strategy not the q_posterior strategy. The later one is set to XStartMean so its objective always gives x_start."""
         inputs = MeanObjectives(mean, x_start, epsilon)
-        return self.posterior_mean.mean_objective(inputs)
+        return self.model_mean.mean_objective(inputs)
 
     def q_posterior_variance(self, timesteps: torch.Tensor) -> torch.Tensor:
         inputs = VarianceInputs(self.factors, timesteps)
@@ -78,7 +80,7 @@ class GaussianDiffusion(LightningModule):
         return self.model_variance.log_variance(VarianceInputs(self.factors, timesteps, variance_objective))
 
     def p_variance_objective(self, model_output: torch.Tensor) -> torch.Tensor:
-        if model_output.size(1) > self.in_channels:
+        if model_output.shape[1] > self.in_channels:
             return model_output[:, self.in_channels :]
         else:
             return torch.empty(0)
