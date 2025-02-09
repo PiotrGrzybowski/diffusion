@@ -3,6 +3,7 @@ from pathlib import Path
 import torch
 from lightning import Callback, LightningModule, Trainer
 from lightning.fabric.utilities.rank_zero import rank_zero_only
+from lightning.pytorch.loggers import WandbLogger
 from PIL import Image
 from torchvision.utils import make_grid, math
 
@@ -25,3 +26,6 @@ class ImageGenerationCallback(Callback):
             result = result.permute(1, 2, 0).to("cpu", torch.uint8).numpy()
             image = Image.fromarray(result)
             image.save(path / f"sample_{trainer.current_epoch}.png")
+
+            if isinstance(trainer.logger, WandbLogger):
+                trainer.logger.log_image("samples", [image], trainer.current_epoch)
