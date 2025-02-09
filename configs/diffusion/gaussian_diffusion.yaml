@@ -4,9 +4,9 @@ defaults:
   - mean@posterior_mean: xstart
   - variance@posterior_variance: fixed_small
   - mean@model_mean: epsilon
-  - variance@model_variance: fixed_large
-  - loss: mse_mean_epsilon
-  - model: small_unet
+  - variance@model_variance: fixed_small
+  - loss: mse_mean_epsilon_simple
+  - model: unet
 
 _target_: diffusion.gaussian_diffusion.GaussianDiffusion
 timesteps: ${timesteps}
