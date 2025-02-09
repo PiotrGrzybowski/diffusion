@@ -2,7 +2,6 @@ import hydra
 import rootutils
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
-from diffusion.utils.logging_utils import log_hyperparameters
 from diffusion.utils.metric_utils import get_metric_value
 from diffusion.utils.ranked_logger import RankedLogger
 from diffusion.utils.task_wrapper import task_wrapper
@@ -49,9 +48,9 @@ def train(cfg: DictConfig) -> tuple[dict[str, object], dict[str, object]]:
         "trainer": trainer,
     }
 
-    if logger:
-        log.info("Logging hyperparameters!")
-        log_hyperparameters(object_dict)
+    # if logger:
+    #     log.info("Logging hyperparameters!")
+    #     log_hyperparameters(object_dict)
 
     if cfg.get("train"):
         log.info("Starting training!")
