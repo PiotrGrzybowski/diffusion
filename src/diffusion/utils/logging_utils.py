@@ -23,7 +23,7 @@ def log_hyperparameters(object_dict: dict[str, Any]) -> None:
     """
     hparams = {}
 
-    cfg = OmegaConf.to_container(object_dict["cfg"])
+    # cfg = OmegaConf.to_container(object_dict["cfg"])
     # model = object_dict["model"]
     diffusion = object_dict["diffusion"]
     trainer = object_dict["trainer"]
@@ -50,9 +50,9 @@ def log_hyperparameters(object_dict: dict[str, Any]) -> None:
     # hparams["tags"] = cfg.get("tags")
     # hparams["ckpt_path"] = cfg.get("ckpt_path")
     # hparams["seed"] = cfg.get("seed")
-    hparams["tags"] = ["vlb", "fixed_small", "epsilon_mean"]
-    hparams["loss"] = "vlb"
-    hparams["mean"] = "epsilon"
+    hparams["loss"] = object_dict["loss"]
+    hparams["mean"] = object_dict["mean"]
+    hparams["variance"] = object_dict["variance"]
 
     # send hparams to all loggers
     for logger in trainer.loggers:

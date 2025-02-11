@@ -44,9 +44,9 @@ def train(cfg: DictConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     object_dict = {
         "diffusion": model,
         "trainer": trainer,
-        "tags": ["vlb", "epsilon", "fixed_small"],
-        "loss": "vlb",
-        "mean": "epsilon",
+        "loss": model.loss.__class__.__name__,
+        "mean": model.model_mean.__class__.__name__,
+        "variance": model.model_variance.__class__.__name__,
     }
 
     if logger:
