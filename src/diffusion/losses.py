@@ -35,7 +35,7 @@ class MseMeanDirect:
 
 class MseMeanDirectSimple:
     def forward(self, inputs: LossInputs) -> torch.Tensor:
-        return mse_loss(inputs.predicted_mean, inputs.mean,reduction='none')
+        return mse_loss(inputs.predicted_mean, inputs.mean)
 
 
 class MseMeanXStart:
@@ -71,7 +71,7 @@ class MseMeanEpsilon:
 
 class MseMeanEpsilonSimple:
     def forward(self, inputs: LossInputs) -> torch.Tensor:
-        return mse_loss(inputs.predicted_mean_objective, inputs.mean_objective,reduction='none')
+        return mse_loss(inputs.predicted_mean_objective, inputs.mean_objective)
 
 
 class VLB:
