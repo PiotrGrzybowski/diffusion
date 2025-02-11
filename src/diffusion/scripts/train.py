@@ -4,6 +4,7 @@ import hydra
 import rootutils
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
+from diffusion.utils.logging_utils import log_hyperparameters
 from diffusion.utils.metric_utils import get_metric_value
 from diffusion.utils.ranked_logger import RankedLogger
 from diffusion.utils.task_wrapper import task_wrapper
@@ -41,17 +42,16 @@ def train(cfg: DictConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
 
     object_dict = {
-        "cfg": cfg,
-        "datamodule": datamodule,
-        "model": model,
-        "callbacks": callbacks,
-        "logger": logger,
+        "diffusion": model,
         "trainer": trainer,
+        "loss": model.loss.__class__.__name__,
+        "mean": model.model_mean.__class__.__name__,
+        "variance": model.model_variance.__class__.__name__,
     }
 
-    # if logger:
-    #     log.info("Logging hyperparameters!")
-    #     log_hyperparameters(object_dict)
+    if logger:
+        log.info("Logging hyperparameters!")
+        log_hyperparameters(object_dict)
 
     if cfg.get("train"):
         log.info("Starting training!")

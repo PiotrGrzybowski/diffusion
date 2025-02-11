@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from lightning import LightningModule
+from torch.nn.functional import mse_loss
 from tqdm import tqdm
 
 from diffusion.diffusion_factors import Factors
@@ -118,9 +119,10 @@ class GaussianDiffusion(LightningModule):
             predicted_log_variance,
         )
 
+        mean_mse = mse_loss(predicted_mean, mean)
         loss = self.loss.forward(loss_inputs)
 
-        return loss
+        return loss.mean(), mean_mse
 
     @torch.inference_mode()
     def sample(self, shape: tuple[int, ...], verbose: bool = False) -> torch.Tensor:
@@ -149,13 +151,14 @@ class GaussianDiffusion(LightningModule):
 
     def training_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
-        loss = self.model_step(x_start)
+        loss, mean_loss = self.model_step(x_start)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("train_mean_mse", mean_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
-        loss = self.model_step(x_start)
+        loss, mean_loss = self.model_step(x_start)
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
