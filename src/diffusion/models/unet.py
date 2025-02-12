@@ -207,6 +207,7 @@ class Unet(nn.Module):
     def __init__(
         self,
         in_channels: int,
+        out_channels: int,
         init_channels: int,
         channels: list[int],
         downsamples: list[bool],
@@ -220,7 +221,7 @@ class Unet(nn.Module):
         self.time_embedding = TimeEmbedding(init_channels, time_dim)
         self.init_conv = nn.Conv2d(in_channels, init_channels, kernel_size=3, padding=1)
         self.final_block = ResnetBlock(init_channels * 2, init_channels, time_dim, dropout)
-        self.final_conv = nn.Conv2d(init_channels, in_channels, kernel_size=1)
+        self.final_conv = nn.Conv2d(init_channels, out_channels, kernel_size=1)
 
         channels = [init_channels] + channels
         self.encoder = UnetEncoder(channels, downsamples, time_dim, attentions, heads, head_dim, dropout)
