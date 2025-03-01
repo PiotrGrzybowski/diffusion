@@ -47,6 +47,7 @@ class MNISTDataModule(LightningDataModule):
         pin_memory: bool = False,
         labels: list[int] | None = None,
         samples_per_label: int | None = None,
+        predict_samples: int = 4,
     ) -> None:
         super().__init__()
 
@@ -67,6 +68,8 @@ class MNISTDataModule(LightningDataModule):
 
         self.batch_size_per_device = batch_size
         self.generator = torch.Generator().manual_seed(42)
+
+        self.predict_samples = predict_samples
 
     def prepare_data(self) -> None:
         self.dataset_class(self.path, train=True, download=True)
@@ -129,7 +132,7 @@ class MNISTDataModule(LightningDataModule):
 
     def predict_dataloader(self):
         return DataLoader(
-            dataset=LazyGaussianDataset(num_samples=4, shape=(1, 28, 28)),
+            dataset=LazyGaussianDataset(num_samples=self.predict_samples, shape=(1, 28, 28)),
             batch_size=self.batch_size_per_device,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,

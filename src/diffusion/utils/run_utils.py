@@ -18,6 +18,7 @@ def find_ckpt_path(cfg: DictConfig) -> str | None:
     run_path = Path(cfg.paths.log_dir) / cfg.task_name / "hydra" / cfg.run_name
     ckpt_path = run_path / "checkpoints" / cfg.ckpt_name
     if not ckpt_path.exists():
+        log.info(f"Checkpoint not found at {ckpt_path}.")
         log.info(f"Initalizing run {cfg.run_name}...")
         return None
     else:
@@ -35,7 +36,8 @@ def custom_main(
     shutil.copy(os.path.join(config_path, config_name), os.path.join(config_path, new_config_name))
 
     cfg = OmegaConf.load(os.path.join(config_path, new_config_name))
-    cfg.run_name = generate_run_name()
+    if cfg.run_name is None:
+        cfg.run_name = generate_run_name()
     OmegaConf.save(cfg, os.path.join(config_path, new_config_name))
 
     return hydra.main(config_path=config_path, config_name=new_config_name, version_base=version_base)

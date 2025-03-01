@@ -24,12 +24,14 @@ timesteps: 1000
 task_name: "mnist_diffusion"
 project: "diffusion"
 group: "mnist"
-run_name: "dark-wall-2"
+run_name: null
 
 tags: ["dev"]
 train: True
 test: True
 predict: True
+
+predict_samples: 4
 
 ckpt_name: "last.ckpt"
 seed: null

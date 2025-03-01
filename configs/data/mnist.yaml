@@ -3,4 +3,5 @@ dataset_name: mnist
 path: /tmp/data
 batch_size: 128
 num_workers: 0
+predict_samples: ${predict_samples}
 # shape: [1, 28, 28]

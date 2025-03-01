@@ -6,7 +6,6 @@ from omegaconf import DictConfig
 
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
-from diffusion.utils.logging_utils import log_hyperparameters
 from diffusion.utils.ranked_logger import RankedLogger
 from diffusion.utils.run_utils import custom_main, find_ckpt_path
 from diffusion.utils.task_wrapper import task_wrapper
@@ -34,24 +33,16 @@ def train(cfg: DictConfig):
     callbacks: list[Callback] = instantiate_callbacks(cfg.get("callbacks"))
 
     log.info("Instantiating loggers...")
-    logger: list[Logger] = instantiate_loggers(cfg.get("logger"))
+    loggers: list[Logger] = instantiate_loggers(cfg.get("logger"))
 
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
-    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
+    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=loggers)
 
+    log.info("Finding checkpoint path...")
     ckpt_path = find_ckpt_path(cfg)
 
-    object_dict = {
-        "diffusion": model,
-        "trainer": trainer,
-        "loss": model.loss.__class__.__name__,
-        "mean": model.model_mean.__class__.__name__,
-        "variance": model.model_variance.__class__.__name__,
-    }
-
-    if logger:
-        log.info("Logging hyperparameters!")
-        log_hyperparameters(object_dict)
+    for logger in loggers:
+        logger.log_hyperparams(dict(model.hparams))
 
     if cfg.train:
         log.info("Starting training!")

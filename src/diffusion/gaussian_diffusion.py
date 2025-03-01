@@ -40,6 +40,8 @@ class GaussianDiffusion(LightningModule):
 
         self.loss = loss
 
+        self.register_components()
+
     def q_mean(self, timesteps: torch.Tensor, x_start: torch.Tensor) -> torch.Tensor:
         return torch.sqrt(self.factors.gammas[timesteps]) * x_start
 
@@ -89,7 +91,7 @@ class GaussianDiffusion(LightningModule):
     def q_sample(self, timesteps: torch.Tensor, x_start: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
         return self.q_mean(timesteps, x_start) + torch.sqrt(self.q_variance(timesteps)) * noise
 
-    def model_step(self, x_start: torch.Tensor) -> torch.Tensor:
+    def model_step(self, x_start: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         timesteps = torch.randint(0, self.timesteps, (x_start.size(0),)).to(device=x_start.device, dtype=torch.long)
         target_noise = torch.randn_like(x_start)
 
@@ -119,10 +121,18 @@ class GaussianDiffusion(LightningModule):
             predicted_log_variance,
         )
 
-        mean_mse = mse_loss(predicted_mean, mean)
+        mean_diff = self._mean_diff(predicted_mean, mean)
+        var_diff = self._var_diff(log_variance, predicted_log_variance)
+
         loss = self.loss.forward(loss_inputs)
 
-        return loss.mean(), mean_mse
+        return loss.mean(), mean_diff, var_diff
+
+    def _mean_diff(self, predicted_mean: torch.Tensor, mean: torch.Tensor) -> torch.Tensor:
+        return mse_loss(predicted_mean, mean)
+
+    def _var_diff(self, log_variance: torch.Tensor, predicted_log_variance: torch.Tensor) -> torch.Tensor:
+        return 0.5 * (-1.0 + log_variance - predicted_log_variance + torch.exp(predicted_log_variance - log_variance)).mean()
 
     @torch.inference_mode()
     def sample(self, shape: tuple[int, ...], verbose: bool = False) -> torch.Tensor:
@@ -151,49 +161,32 @@ class GaussianDiffusion(LightningModule):
 
     def training_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
-        loss, mean_loss = self.model_step(x_start)
+        loss, mean_diff, var_diff = self.model_step(x_start)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log("train_mean_mse", mean_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("train_mean_diff", mean_diff, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("train_var_diff", var_diff, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
-        loss, mean_loss = self.model_step(x_start)
+        loss, mean_diff, var_diff = self.model_step(x_start)
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("val_mean_diff", mean_diff, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("val_var_diff", var_diff, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
         return self.sample(batch.shape)
-        # indexes = list(range(self.timesteps))[::-1]
-        # x_t = batch
-        #
-        # console = Console()
-        #
-        # for index in indexes:
-        #     console.print(f"Sampling... {indexes[0] - index}/{len(indexes)}", end="\r")
-        #     timesteps = torch.full((len(batch),), index, device=self.device, dtype=torch.long)
-        #     noise = torch.randn_like(x_t).to(device=self.device)
-        #
-        #     output = self.model(x_t, timesteps)
-        #     mean_objective = self.p_mean_objective(output)
-        #     predicted_mean = self.p_mean(timesteps, x_t, mean_objective)
-        #
-        #     variance_objective = self.p_variance_objective(output)
-        #     predicted_variance = self.p_variance(timesteps, variance_objective)
-        #
-        #     mask = (timesteps != 0).float().view(-1, 1, 1, 1)
-        #     x_t = predicted_mean + torch.sqrt(predicted_variance) * noise * mask
-        # x_t = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
-        # return x_t
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=2e-4)
 
-    def component_summary(self):
-        return {
+    def register_components(self):
+        components = {
             "mean": self.model_mean.__class__.__name__,
             "variance": self.model_variance.__class__.__name__,
             "loss": self.loss.__class__.__name__,
             "scheduler": self.scheduler.__class__.__name__,
             "model": self.model.__class__.__name__,
         }
+        self.save_hyperparameters(components)

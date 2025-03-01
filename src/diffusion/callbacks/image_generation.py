@@ -27,18 +27,23 @@ class ImageGenerationCallback(Callback):
             image = Image.fromarray(result)
             image.save(path / f"sample_{trainer.current_epoch}.png")
 
-            if isinstance(trainer.logger, WandbLogger):
-                trainer.logger.log_image("samples", [image], trainer.current_epoch)
+            if trainer.loggers:
+                for logger in trainer.loggers:
+                    if isinstance(logger, WandbLogger):
+                        logger.log_image("samples", [image], trainer.current_epoch)
 
     def on_predict_batch_end(
         self, trainer, pl_module, outputs: torch.Tensor, batch: torch.Tensor, batch_idx: int, dataloader_idx: int = 0
     ) -> None:
-        print(f"Here predicting batch {batch_idx}")
         result = make_grid(outputs, padding=0, nrow=int(math.sqrt(outputs.shape[0])))
         result = result.permute(1, 2, 0).to("cpu", torch.uint8).numpy()
         image = Image.fromarray(result)
-        image.save(self.output_dir / f"sample_{batch_idx}.png")
 
-        if isinstance(trainer.logger, WandbLogger):
-            print("logging images")
-            trainer.logger.log_image("samples", [image], batch_idx)
+        path = self.output_dir / "predicts"
+        path.mkdir(exist_ok=True)
+        image.save(path / f"predict_{batch_idx}.png")
+
+        if trainer.loggers:
+            for logger in trainer.loggers:
+                if isinstance(logger, WandbLogger):
+                    logger.log_image("predict", [image], trainer.current_epoch)
