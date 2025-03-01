@@ -576,6 +576,7 @@ dependencies = [
     { name = "streamlit" },
     { name = "tensorboard" },
     { name = "torch" },
+    { name = "torch-fidelity" },
     { name = "torchvision" },
     { name = "wandb" },
 ]
@@ -611,6 +612,7 @@ requires-dist = [
     { name = "streamlit", specifier = ">=1.37.1" },
     { name = "tensorboard", specifier = ">=2.17.1" },
     { name = "torch", specifier = ">=2.3.1" },
+    { name = "torch-fidelity", specifier = ">=0.3.0" },
     { name = "torchvision", specifier = ">=0.18.1" },
     { name = "wandb", specifier = ">=0.17.8" },
 ]
@@ -2520,6 +2522,23 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1b/a1/e8b286b85f19dd701a4b853c0554898b1fa69cea552c7d1ec39bc86f59aa/torch-2.3.1-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:224259821fe3e4c6f7edf1528e4fe4ac779c77addaa74215eb0b63a5c474d66c", size = 86853451 },
     { url = "https://files.pythonhosted.org/packages/af/77/cf6ceb000f8a064c7b373fb3471d85bcc39917d175af82fead4a2857c669/torch-2.3.1-cp312-cp312-win_amd64.whl", hash = "sha256:e5fdccbf6f1334b2203a61a0e03821d5845f1421defe311dabeae2fc8fbeac2d", size = 159727172 },
     { url = "https://files.pythonhosted.org/packages/49/b6/1a2e3d43d4bc4ad7a4575b3745d707a68d5ed00ba263b205b6281bdd0921/torch-2.3.1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:3c333dc2ebc189561514eda06e81df22bf8fb64e2384746b2cb9f04f96d1d4c8", size = 60978559 },
+]
+
+[[package]]
+name = "torch-fidelity"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "scipy" },
+    { name = "torch" },
+    { name = "torchvision" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/dd/72/687a54bab9a11e351cff3859ece48fb58e13786a493eb13a5da32b42de32/torch_fidelity-0.3.0.tar.gz", hash = "sha256:3d3e33db98919759cc4f3f24cb27e1e74bdc7c905d90a780630e4e1c18492b66", size = 31797 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/2c/e24c7e261eaa00fc911c39a5e30f77efbace480aae2548db9ceaef410945/torch_fidelity-0.3.0-py3-none-any.whl", hash = "sha256:d01284825595feb7dc3eae3dc9a0d8ced02be764813a3483f109bc142b52a1d3", size = 37012 },
 ]
 
 [[package]]

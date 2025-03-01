@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 from lightning import LightningModule
+from rich.console import Console
 from torch.nn.functional import mse_loss
-from tqdm import tqdm
 
 from diffusion.diffusion_factors import Factors
 from diffusion.losses import DiffusionLoss, LossInputs
@@ -129,10 +129,10 @@ class GaussianDiffusion(LightningModule):
         indexes = list(range(self.timesteps))[::-1]
         x_t = torch.randn(shape, device=self.device)
 
-        if verbose:
-            indexes = tqdm(indexes, desc="Sampling")
+        console = Console()
 
         for index in indexes:
+            console.print(f"Sampling... {indexes[0] - index}/{len(indexes)}", end="\r")
             timesteps = torch.full((shape[0],), index, device=self.device, dtype=torch.long)
             noise = torch.randn_like(x_t).to(device=self.device)
 
@@ -162,5 +162,38 @@ class GaussianDiffusion(LightningModule):
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
+    def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
+        return self.sample(batch.shape)
+        # indexes = list(range(self.timesteps))[::-1]
+        # x_t = batch
+        #
+        # console = Console()
+        #
+        # for index in indexes:
+        #     console.print(f"Sampling... {indexes[0] - index}/{len(indexes)}", end="\r")
+        #     timesteps = torch.full((len(batch),), index, device=self.device, dtype=torch.long)
+        #     noise = torch.randn_like(x_t).to(device=self.device)
+        #
+        #     output = self.model(x_t, timesteps)
+        #     mean_objective = self.p_mean_objective(output)
+        #     predicted_mean = self.p_mean(timesteps, x_t, mean_objective)
+        #
+        #     variance_objective = self.p_variance_objective(output)
+        #     predicted_variance = self.p_variance(timesteps, variance_objective)
+        #
+        #     mask = (timesteps != 0).float().view(-1, 1, 1, 1)
+        #     x_t = predicted_mean + torch.sqrt(predicted_variance) * noise * mask
+        # x_t = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
+        # return x_t
+
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=2e-4)
+
+    def component_summary(self):
+        return {
+            "mean": self.model_mean.__class__.__name__,
+            "variance": self.model_variance.__class__.__name__,
+            "loss": self.loss.__class__.__name__,
+            "scheduler": self.scheduler.__class__.__name__,
+            "model": self.model.__class__.__name__,
+        }

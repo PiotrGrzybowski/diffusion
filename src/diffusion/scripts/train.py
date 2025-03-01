@@ -1,17 +1,15 @@
-from typing import Any
-
 import hydra
 import rootutils
+from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
+from lightning.pytorch.loggers import Logger
+from omegaconf import DictConfig
+
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
 from diffusion.utils.logging_utils import log_hyperparameters
-from diffusion.utils.metric_utils import get_metric_value
 from diffusion.utils.ranked_logger import RankedLogger
+from diffusion.utils.run_utils import custom_main, find_ckpt_path
 from diffusion.utils.task_wrapper import task_wrapper
-from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.loggers import Logger
-from omegaconf import DictConfig
 
 
 root_path = rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=False)
@@ -22,7 +20,7 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 
 @task_wrapper
-def train(cfg: DictConfig) -> tuple[dict[str, Any], dict[str, Any]]:
+def train(cfg: DictConfig):
     if cfg.get("seed"):
         seed_everything(cfg.seed, workers=True)
 
@@ -41,6 +39,8 @@ def train(cfg: DictConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
 
+    ckpt_path = find_ckpt_path(cfg)
+
     object_dict = {
         "diffusion": model,
         "trainer": trainer,
@@ -53,46 +53,23 @@ def train(cfg: DictConfig) -> tuple[dict[str, Any], dict[str, Any]]:
         log.info("Logging hyperparameters!")
         log_hyperparameters(object_dict)
 
-    if cfg.get("train"):
+    if cfg.train:
         log.info("Starting training!")
-        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+        trainer.fit(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
-    train_metrics = trainer.callback_metrics
-
-    if cfg.get("test"):
+    if cfg.test:
         log.info("Starting testing!")
-
-        if trainer.checkpoint_callback and isinstance(trainer.checkpoint_callback, ModelCheckpoint):
-            ckpt_path = trainer.checkpoint_callback.best_model_path
-        else:
-            log.warning("Best ckpt not found! Using current weights for testing...")
-            ckpt_path = None
-        log.info(f"Best ckpt path: {ckpt_path}")
-
         trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
-    test_metrics = trainer.callback_metrics
-
-    metric_dict = {**train_metrics, **test_metrics}
-
-    return metric_dict, object_dict
+    if cfg.predict:
+        log.info("Starting prediction!")
+        trainer.predict(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
 
-@hydra.main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")
+@custom_main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")
 def main(cfg: DictConfig) -> float | None:
-    """Main entry point for training.
-
-    :param cfg: dictConfig configuration composed by Hydra.
-    :return: Optional[float] with optimized metric value.
-    """
     extras(cfg)
-
-    metric_dict, _ = train(cfg)
-
-    # safely retrieve metric value for hydra-based hyperparameter optimization
-    metric_value = get_metric_value(metric_dict=metric_dict, metric_name=cfg.get("optimized_metric"))
-
-    return metric_value
+    train(cfg)
 
 
 if __name__ == "__main__":

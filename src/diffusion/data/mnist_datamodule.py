@@ -15,6 +15,27 @@ from diffusion.data.filtered_mnist import FilteredMNIST
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
+class LazyGaussianDataset(Dataset):
+    def __init__(self, num_samples: int, shape: tuple):
+        """
+        A dataset that lazily generates Gaussian noise samples.
+
+        Args:
+            num_samples (int): Number of samples to generate.
+            shape (tuple): Shape of each sample (e.g., image shape).
+            mean (float): Mean of the Gaussian distribution.
+            std (float): Standard deviation of the Gaussian distribution.
+        """
+        self.num_samples = num_samples
+        self.shape = shape
+
+    def __len__(self):
+        return self.num_samples
+
+    def __getitem__(self, idx):
+        return torch.randn(self.shape)
+
+
 class MNISTDataModule(LightningDataModule):
     def __init__(
         self,
@@ -105,6 +126,15 @@ class MNISTDataModule(LightningDataModule):
             )
         else:
             raise RuntimeError("The test dataset is not loaded.")
+
+    def predict_dataloader(self):
+        return DataLoader(
+            dataset=LazyGaussianDataset(num_samples=4, shape=(1, 28, 28)),
+            batch_size=self.batch_size_per_device,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
+            shuffle=False,
+        )
 
     def _check_batch_size_compatibility(self) -> None:
         if self.trainer is not None:
