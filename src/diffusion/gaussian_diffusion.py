@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 from lightning import LightningModule
+from rich.console import Console
 from torch.nn.functional import mse_loss
-from tqdm import tqdm
 
 from diffusion.diffusion_factors import Factors
 from diffusion.losses import DiffusionLoss, LossInputs
@@ -39,6 +39,8 @@ class GaussianDiffusion(LightningModule):
         self.posterior_mean = posterior_mean
 
         self.loss = loss
+
+        self.register_components()
 
     def q_mean(self, timesteps: torch.Tensor, x_start: torch.Tensor) -> torch.Tensor:
         return torch.sqrt(self.factors.gammas[timesteps]) * x_start
@@ -89,7 +91,7 @@ class GaussianDiffusion(LightningModule):
     def q_sample(self, timesteps: torch.Tensor, x_start: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
         return self.q_mean(timesteps, x_start) + torch.sqrt(self.q_variance(timesteps)) * noise
 
-    def model_step(self, x_start: torch.Tensor) -> torch.Tensor:
+    def model_step(self, x_start: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         timesteps = torch.randint(0, self.timesteps, (x_start.size(0),)).to(device=x_start.device, dtype=torch.long)
         target_noise = torch.randn_like(x_start)
 
@@ -129,10 +131,10 @@ class GaussianDiffusion(LightningModule):
         indexes = list(range(self.timesteps))[::-1]
         x_t = torch.randn(shape, device=self.device)
 
-        if verbose:
-            indexes = tqdm(indexes, desc="Sampling")
+        console = Console()
 
         for index in indexes:
+            console.print(f"Sampling... {indexes[0] - index}/{len(indexes)}", end="\r")
             timesteps = torch.full((shape[0],), index, device=self.device, dtype=torch.long)
             noise = torch.randn_like(x_t).to(device=self.device)
 
@@ -151,16 +153,30 @@ class GaussianDiffusion(LightningModule):
 
     def training_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
-        loss, mean_loss = self.model_step(x_start)
+        loss, mean_mse = self.model_step(x_start)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log("train_mean_mse", mean_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("train_mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
-        loss, mean_loss = self.model_step(x_start)
+        loss, mean_mse = self.model_step(x_start)
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("val_mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
+
+    def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
+        return self.sample(batch.shape)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=2e-4)
+
+    def register_components(self):
+        components = {
+            "mean": self.model_mean.__class__.__name__,
+            "variance": self.model_variance.__class__.__name__,
+            "loss": self.loss.__class__.__name__,
+            "scheduler": self.scheduler.__class__.__name__,
+            "model": self.model.__class__.__name__,
+        }
+        self.save_hyperparameters(components)

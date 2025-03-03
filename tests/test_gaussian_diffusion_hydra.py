@@ -1,13 +1,14 @@
 import pytest
 import torch.nn as nn
+from hydra import compose, initialize
+from hydra.utils import instantiate
+from omegaconf import open_dict
+
 from diffusion.diffusion_factors import Factors
 from diffusion.gaussian_diffusion import GaussianDiffusion
 from diffusion.losses import DiffusionLoss
 from diffusion.means import MeanStrategy
 from diffusion.variances import VarianceStrategy
-from hydra import compose, initialize
-from hydra.utils import instantiate
-from omegaconf import open_dict
 
 
 @pytest.fixture
