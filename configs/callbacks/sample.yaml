@@ -1,0 +1,3 @@
+prediction_writer:
+  _target_: diffusion.callbacks.prediction_writer.PredictionWriter
+  run_dir: ${paths.output_dir}

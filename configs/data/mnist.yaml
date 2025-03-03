@@ -1,6 +1,7 @@
 _target_: diffusion.data.mnist_datamodule.MNISTDataModule
 dataset_name: mnist
 path: /tmp/data
-batch_size: 128
+batch_size: ${batch_size}
 num_workers: 0
+predict_samples: ${predict_samples}
 # shape: [1, 28, 28]

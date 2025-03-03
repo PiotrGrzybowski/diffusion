@@ -1,31 +1,18 @@
-# @package _global_
 defaults:
   - _self_
-  - callbacks: default
-  - logger: null 
   - paths: default
-  - extras: default
   - hydra: default
+  - extras: default
+  - trainer: cpu
+  - callbacks: sample
 
-  - trainer: gpu
-  - data: null
-  - model: unet
-  - diffusion: default
-  - loss: mean_mse
-  - scheduler: linear
-  - variance: fixed_small
+task_name: mnist_diffusion
+run_name: icy-horizon-51
+ckpt_name: last.ckpt
+show: False
+predict_samples: 4
+batch_size: 4
 
-timesteps: 1000
-samples: 4
-in_channels: 1
-dim: 32
-
-task_name: "sample"
-
-tags: ["dev"]
-
-# simply provide checkpoint path to resume training
-ckpt_path: null
-#
-# seed for random number generators in pytorch, numpy and python.random
-seed: null
+# To be set with the training job config, necessary to propagate to ImageGeneration callback.
+in_channels: null 
+dim: null

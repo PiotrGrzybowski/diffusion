@@ -22,10 +22,12 @@ class ImageGenerationCallback(Callback):
             result = pl_module.sample(self.shape)
             path = self.output_dir / "images"
             path.mkdir(exist_ok=True)
-            result = make_grid(result, nrow=int(math.sqrt(result.shape[0])))
+            result = make_grid(result, padding=0, nrow=int(math.sqrt(result.shape[0])))
             result = result.permute(1, 2, 0).to("cpu", torch.uint8).numpy()
             image = Image.fromarray(result)
             image.save(path / f"sample_{trainer.current_epoch}.png")
 
-            if isinstance(trainer.logger, WandbLogger):
-                trainer.logger.log_image("samples", [image], trainer.current_epoch)
+            if trainer.loggers:
+                for logger in trainer.loggers:
+                    if isinstance(logger, WandbLogger):
+                        logger.log_image("samples", [image], trainer.current_epoch)
