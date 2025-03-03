@@ -31,24 +31,3 @@ class ImageGenerationCallback(Callback):
                 for logger in trainer.loggers:
                     if isinstance(logger, WandbLogger):
                         logger.log_image("samples", [image], trainer.current_epoch)
-
-    def on_predict_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        return super().on_predict_epoch_end(trainer, pl_module)
-
-    def on_predict_batch_end(
-        self, trainer, pl_module, outputs: torch.Tensor, batch: torch.Tensor, batch_idx: int, dataloader_idx: int = 0
-    ) -> None:
-        print("hella")
-        print(batch_idx)
-        result = make_grid(outputs, padding=0, nrow=int(math.sqrt(outputs.shape[0])))
-        result = result.permute(1, 2, 0).to("cpu", torch.uint8).numpy()
-        image = Image.fromarray(result)
-
-        path = self.output_dir / "predicts"
-        path.mkdir(exist_ok=True)
-        image.save(path / f"predict_{batch_idx}.png")
-
-        if trainer.loggers:
-            for logger in trainer.loggers:
-                if isinstance(logger, WandbLogger):
-                    logger.log_image("predict", [image], trainer.current_epoch)
