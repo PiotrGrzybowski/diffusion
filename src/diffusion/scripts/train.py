@@ -1,8 +1,10 @@
+from pathlib import Path
+
 import hydra
 import rootutils
 from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
 from lightning.pytorch.loggers import Logger
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
@@ -20,6 +22,9 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 @task_wrapper
 def train(cfg: DictConfig):
+    log.info("Serialize config")
+    OmegaConf.save(cfg, Path(cfg.paths.output_dir) / "config.yaml")
+
     if cfg.get("seed"):
         seed_everything(cfg.seed, workers=True)
 
