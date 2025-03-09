@@ -129,14 +129,7 @@ class GaussianDiffusion(LightningModule):
 
         return loss.mean(), mean_mse
 
-    def samp(self, shape: tuple[int, ...], steps: int) -> torch.Tensor:
-        if steps < self.timesteps:
-            pass
-        else:
-            pass
-
     @torch.inference_mode()
-    # def sample(self, shape: tuple[int, ...], steps: int) -> torch.Tensor:
     def sample(self, batch: torch.Tensor, steps: int) -> torch.Tensor:
         original_factors = self.factors
         self.factors = self.build_sample_factors(steps)
