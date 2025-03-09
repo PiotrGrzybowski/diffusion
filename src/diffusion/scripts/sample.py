@@ -24,6 +24,7 @@ def sample(sample_config: DictConfig):
     cfg = OmegaConf.load(run_path / "config.yaml")
     cfg.predict_samples = sample_config.predict_samples
     cfg.trainer = sample_config.trainer
+    cfg.sample_timesteps = sample_config.sample_timesteps
 
     sample_config.in_channels = cfg.in_channels
     sample_config.dim = cfg.dim

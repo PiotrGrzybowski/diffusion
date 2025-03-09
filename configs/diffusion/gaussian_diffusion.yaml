@@ -10,6 +10,7 @@ defaults:
 
 _target_: diffusion.gaussian_diffusion.GaussianDiffusion
 timesteps: ${timesteps}
+sample_timesteps: ${sample_timesteps}
 scheduler: ${scheduler}
 posterior_mean: ${posterior_mean}
 posterior_variance: ${posterior_variance}

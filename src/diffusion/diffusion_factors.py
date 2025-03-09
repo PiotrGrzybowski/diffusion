@@ -1,13 +1,10 @@
 import torch
 import torch.nn as nn
 
-from diffusion.schedulers import Scheduler
-
 
 class Factors(nn.Module):
-    def __init__(self, scheduler: Scheduler) -> None:
+    def __init__(self, betas: torch.Tensor) -> None:
         super().__init__()
-        betas = scheduler.schedule()
         alphas = 1 - betas
         gammas = torch.cumprod(alphas, dim=0)
         gammas_prev = torch.cat([torch.tensor([1.0]), gammas[:-1]])
