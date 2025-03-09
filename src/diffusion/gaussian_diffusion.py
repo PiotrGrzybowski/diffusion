@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from lightning import LightningModule
@@ -15,6 +16,7 @@ class GaussianDiffusion(LightningModule):
     def __init__(
         self,
         timesteps: int,
+        sample_timesteps: int,
         scheduler: Scheduler,
         posterior_mean: MeanStrategy,
         posterior_variance: VarianceStrategy,
@@ -27,9 +29,10 @@ class GaussianDiffusion(LightningModule):
         super().__init__()
         self.model = model
         self.scheduler = scheduler
-        self.factors = Factors(scheduler)
+        self.factors = Factors(scheduler.schedule())
 
         self.timesteps = timesteps
+        self.sample_timesteps = sample_timesteps
         self.in_channels = in_channels
 
         self.model_mean = model_mean
@@ -127,15 +130,16 @@ class GaussianDiffusion(LightningModule):
         return loss.mean(), mean_mse
 
     @torch.inference_mode()
-    def sample(self, shape: tuple[int, ...], verbose: bool = False) -> torch.Tensor:
-        indexes = list(range(self.timesteps))[::-1]
-        x_t = torch.randn(shape, device=self.device)
+    def sample(self, batch: torch.Tensor, steps: int) -> torch.Tensor:
+        original_factors = self.factors
+        self.factors = self.build_sample_factors(steps)
 
+        x_t = batch
         console = Console()
-
+        indexes = list(range(steps))[::-1]
         for index in indexes:
             console.print(f"Sampling... {indexes[0] - index}/{len(indexes)}", end="\r")
-            timesteps = torch.full((shape[0],), index, device=self.device, dtype=torch.long)
+            timesteps = torch.full((batch.shape[0],), index, device=self.device, dtype=torch.long)
             noise = torch.randn_like(x_t).to(device=self.device)
 
             output = self.model(x_t, timesteps)
@@ -146,10 +150,21 @@ class GaussianDiffusion(LightningModule):
             predicted_variance = self.p_variance(timesteps, variance_objective)
 
             mask = (timesteps != 0).float().view(-1, 1, 1, 1)
-            # TODO: use external sampler Manager as loss and variance.
             x_t = predicted_mean + torch.sqrt(predicted_variance) * noise * mask
         x_t = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
+
+        self.factors = original_factors
         return x_t
+
+    def build_sample_factors(self, steps: int) -> Factors:
+        indexes = np.linspace(0, self.timesteps - 1, steps, dtype=int).tolist()[::-1]
+        last_gamma = 1.0
+        betas = []
+        for i, gamma in enumerate(self.factors.gammas):
+            if i in indexes:
+                betas.append(1 - gamma / last_gamma)
+                last_gamma = gamma
+        return Factors(torch.tensor(betas)).to(self.device)
 
     def training_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
@@ -166,7 +181,7 @@ class GaussianDiffusion(LightningModule):
         return loss
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
-        return self.sample(batch.shape)
+        return self.sample(batch, self.sample_timesteps)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=2e-4)
