@@ -31,8 +31,9 @@ class PredictionWriter(BasePredictionWriter):
         else:
             temp_dir = [""]
 
-        torch.distributed.broadcast_object_list(temp_dir)
-        torch.distributed.barrier()
+        if torch.distributed.is_initialized() and torch.distributed.is_available():
+            torch.distributed.broadcast_object_list(temp_dir)
+            torch.distributed.barrier()
 
         self.temp_dir = temp_dir[0]
         for i, prediction in enumerate(predictions):
