@@ -12,6 +12,7 @@ ckpt_name: last.ckpt
 show: False
 predict_samples: 4
 batch_size: 4
+sample_timesteps: 1000
 
 # To be set with the training job config, necessary to propagate to ImageGeneration callback.
 in_channels: null 
