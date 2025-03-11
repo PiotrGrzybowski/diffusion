@@ -26,6 +26,9 @@ def sample(sample_config: DictConfig):
     cfg.trainer = sample_config.trainer
     cfg.sample_timesteps = sample_config.sample_timesteps
 
+    cfg.data.batch_size = sample_config.batch_size
+    cfg.data.predict_samples = sample_config.predict_samples
+
     sample_config.in_channels = cfg.in_channels
     sample_config.dim = cfg.dim
 

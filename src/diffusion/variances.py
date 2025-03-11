@@ -1,5 +1,5 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
 
 import torch
 
@@ -10,14 +10,17 @@ from diffusion.diffusion_factors import Factors
 class VarianceInputs:
     factors: Factors
     timesteps: torch.Tensor
-    model_output: torch.Tensor | None = None
+    model_output: torch.Tensor
 
 
-@runtime_checkable
-class VarianceStrategy(Protocol):
-    def variance(self, inputs: VarianceInputs) -> torch.Tensor: ...
+class VarianceStrategy(ABC):
+    @abstractmethod
+    def variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        raise NotImplementedError
 
-    def log_variance(self, inputs: VarianceInputs) -> torch.Tensor: ...
+    @abstractmethod
+    def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        raise NotImplementedError
 
 
 class FixedSmallVariance:
@@ -48,13 +51,9 @@ class FixedLargeVariance:
 
 class DirectVariance:
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
-        if inputs.model_output is None:
-            raise ValueError("Model output must be provided for trainable variance")
         return torch.exp(inputs.model_output)
 
     def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
-        if inputs.model_output is None:
-            raise ValueError("Model output must be provided for trainable variance")
         return inputs.model_output
 
 
@@ -67,7 +66,5 @@ class TrainableRangeVariance:
         return torch.exp(self.log_variance(inputs))
 
     def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
-        if inputs.model_output is None:
-            raise ValueError("Model output must be provided for trainable range variance")
         v = (inputs.model_output + 1) / 2
         return v * self.uper_variance.log_variance(inputs) + (1 - v) * self.lower_variance.log_variance(inputs)

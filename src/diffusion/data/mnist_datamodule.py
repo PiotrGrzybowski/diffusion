@@ -82,10 +82,10 @@ class MNISTDataModule(LightningDataModule):
                 self.dataset_class(self.path, train=True, transform=self.transforms), self.labels, self.samples_per_label
             )
             test_dataset = FilteredMNIST(self.dataset_class(self.path, train=False, transform=self.transforms), self.labels)
-            train_dataset, val_set = self._random_split(train_dataset)
+            # train_dataset, val_set = self._random_split(train_dataset)
 
             self.data_train = train_dataset
-            self.data_val = val_set
+            self.data_val = test_dataset
             self.data_test = test_dataset
 
     def _random_split(self, dataset: VisionDataset) -> list:
@@ -125,7 +125,7 @@ class MNISTDataModule(LightningDataModule):
                 batch_size=self.batch_size_per_device,
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory,
-                shuffle=False,
+                shuffle=True,
             )
         else:
             raise RuntimeError("The test dataset is not loaded.")
