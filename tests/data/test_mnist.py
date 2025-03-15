@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 import torch
-from diffusion.data.mnist_datamodule import MNISTDataModule
 from rootutils import find_root
+
+from diffusion.data.mnist_datamodule import MNISTDataModule
 
 
 @pytest.fixture(scope="package")

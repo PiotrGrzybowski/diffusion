@@ -13,6 +13,12 @@ class VarianceInputs:
     model_output: torch.Tensor
 
 
+@dataclass
+class VarianceOutputs:
+    variance: torch.Tensor
+    log_variance: torch.Tensor
+
+
 class VarianceStrategy(ABC):
     @abstractmethod
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
@@ -21,6 +27,9 @@ class VarianceStrategy(ABC):
     @abstractmethod
     def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
         raise NotImplementedError
+
+    def forward(self, inputs: VarianceInputs) -> VarianceOutputs:
+        return VarianceOutputs(self.variance(inputs), self.log_variance(inputs))
 
 
 class FixedSmallVariance(VarianceStrategy):

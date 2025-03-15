@@ -1,11 +1,12 @@
 from pathlib import Path
 
 import pytest
-from diffusion.scripts.train import train
 from hydra import compose, initialize_config_dir
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, open_dict
 from rootutils import find_root
+
+from diffusion.scripts.train import train
 
 
 @pytest.fixture
