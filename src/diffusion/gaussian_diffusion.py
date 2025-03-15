@@ -47,7 +47,7 @@ class GaussianDiffusion(LightningModule):
     def q_sample(self, timesteps: torch.Tensor, x_start: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
         mean = torch.sqrt(self.factors.gammas[timesteps]) * x_start
         variance = 1 - self.factors.gammas[timesteps]
-        return mean + variance * noise
+        return mean + torch.sqrt(variance) * noise
 
     def posterior_mean(self, x_start: torch.Tensor, x_t: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         gammas = self.factors.gammas[timesteps]
