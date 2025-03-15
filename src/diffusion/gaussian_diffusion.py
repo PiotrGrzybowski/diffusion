@@ -108,8 +108,12 @@ class GaussianDiffusion(LightningModule):
 
         loss = self.loss.forward(LossInputs(target_terms, predicted_terms, self.factors, timesteps))
 
-        mean_mse = mse_loss(predicted_terms.mean, target_terms.mean).mean()
-        mean_epsilon_mse = mse_loss(predicted_terms.epsilon, target_terms.epsilon).mean()
+        mean_mse = mse_loss(predicted_terms.mean, target_terms.mean)
+        mean_epsilon_mse = mse_loss(predicted_terms.epsilon, target_terms.epsilon)
+
+        print(predicted_terms.epsilon[0, 0, :5, :5])
+        print(target_terms.epsilon[0, 0, :5, :5])
+        assert False
 
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         self.log("train_mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
@@ -148,11 +152,11 @@ class GaussianDiffusion(LightningModule):
         console = Console()
         indexes = list(range(steps))[::-1]
         for index in indexes:
-            console.print(f"Sampling... {indexes[0] - index}/{len(indexes)}", end="\r")
+            console.print(f"Samplingen... {indexes[0] - index}/{len(indexes)}", end="\r")
 
             timesteps = torch.full((batch.shape[0],), index, device=self.device, dtype=torch.long)
             predicted_terms = self.model_step(x_t, timesteps)
-            posterior_terms = self.posterior_step(x_t, timesteps)
+            # posterior_terms = self.posterior_step(x_t, timesteps)
 
             x_prev = self.sampler.sample(predicted_terms, self.factors, timesteps)
 
