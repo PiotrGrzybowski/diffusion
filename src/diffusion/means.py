@@ -86,15 +86,27 @@ class MeanOutputs:
     epsilon: torch.Tensor
 
 
+@dataclass
+class MeanInputs:
+    x_t: torch.Tensor
+    model_output: torch.Tensor
+    factors: Factors
+    timesteps: torch.Tensor
+
+
 class MeanStrategy(ABC):
     @abstractmethod
-    def forward(self, x_t: torch.Tensor, model_output: torch.Tensor, factors: Factors, timesteps: torch.Tensor) -> MeanOutputs:
+    def forward(self, inputs: MeanInputs) -> MeanOutputs:
         raise NotImplementedError
 
 
 class DirectMean(MeanStrategy):
-    def forward(self, x_t: torch.Tensor, model_output: torch.Tensor, factors: Factors, timesteps: torch.Tensor) -> MeanOutputs:
-        mean = model_output
+    def forward(self, inputs: MeanInputs) -> MeanOutputs:
+        x_t = inputs.x_t
+        mean = inputs.model_output
+        factors = inputs.factors
+        timesteps = inputs.timesteps
+
         x_start = x_start_from_mean(x_t, mean, factors, timesteps)
         epsilon = epsilon_from_xstart(x_start, x_t, factors, timesteps)
 
@@ -102,8 +114,12 @@ class DirectMean(MeanStrategy):
 
 
 class XStartMean(MeanStrategy):
-    def forward(self, x_t: torch.Tensor, model_output: torch.Tensor, factors: Factors, timesteps: torch.Tensor) -> MeanOutputs:
-        x_start = model_output
+    def forward(self, inputs: MeanInputs) -> MeanOutputs:
+        x_t = inputs.x_t
+        x_start = inputs.model_output
+        factors = inputs.factors
+        timesteps = inputs.timesteps
+
         mean = mean_from_xstart(x_start, x_t, factors, timesteps)
         epsilon = epsilon_from_xstart(x_start, x_t, factors, timesteps)
 
@@ -111,8 +127,12 @@ class XStartMean(MeanStrategy):
 
 
 class EpsilonMean(MeanStrategy):
-    def forward(self, x_t: torch.Tensor, model_output: torch.Tensor, factors: Factors, timesteps: torch.Tensor) -> MeanOutputs:
-        epsilon = model_output
+    def forward(self, inputs: MeanInputs) -> MeanOutputs:
+        x_t = inputs.x_t
+        epsilon = inputs.model_output
+        factors = inputs.factors
+        timesteps = inputs.timesteps
+
         x_start = x_start_from_epsilon(x_t, epsilon, factors, timesteps)
         mean = mean_from_epsilon(x_t, epsilon, factors, timesteps)
 

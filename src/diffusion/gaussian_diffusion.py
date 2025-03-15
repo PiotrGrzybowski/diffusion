@@ -6,8 +6,8 @@ from rich.console import Console
 
 from diffusion.diffusion_factors import Factors
 from diffusion.losses import DiffusionLoss, LossInputs
-from diffusion.means import MeanStrategy, mean_from_xstart
-from diffusion.sampler import SampleOutputs, Sampler
+from diffusion.means import MeanStrategy
+from diffusion.samplers import SampleOutputs, Sampler
 from diffusion.schedulers import Scheduler
 from diffusion.variances import VarianceInputs, VarianceStrategy
 
@@ -18,8 +18,8 @@ class GaussianDiffusion(LightningModule):
         timesteps: int,
         sample_timesteps: int,
         scheduler: Scheduler,
-        model_mean: MeanStrategy,
-        model_variance: VarianceStrategy,
+        mean_strategy: MeanStrategy,
+        variance_strategy: VarianceStrategy,
         loss: DiffusionLoss,
         model: nn.Module,
         sampler: Sampler,
@@ -34,8 +34,8 @@ class GaussianDiffusion(LightningModule):
         self.sample_timesteps = sample_timesteps
         self.in_channels = in_channels
 
-        self.model_mean = model_mean
-        self.model_variance = model_variance
+        self.mean_strategy = mean_strategy
+        self.variance_strategy = variance_strategy
 
         self.loss = loss
         self.sampler = sampler
@@ -48,7 +48,15 @@ class GaussianDiffusion(LightningModule):
         return mean + variance * noise
 
     def posterior_mean(self, x_start, x_t, timesteps) -> torch.Tensor:
-        return mean_from_xstart(x_start, x_t, self.factors, timesteps)
+        gammas = self.factors.gammas[timesteps]
+        gammas_prev = self.factors.gammas_prev[timesteps]
+        alphas = self.factors.alphas[timesteps]
+        betas = self.factors.betas[timesteps]
+
+        x_t_coeff = torch.sqrt(alphas) * (1 - gammas_prev) / (1 - gammas)
+        x_start_coeff = torch.sqrt(gammas_prev) * betas / (1 - gammas)
+
+        return x_t_coeff * x_t + x_start_coeff * x_start
 
     def posterior_variance(self, timesteps: torch.Tensor) -> torch.Tensor:
         betas = self.factors.betas[timesteps]
@@ -76,11 +84,11 @@ class GaussianDiffusion(LightningModule):
         mean_prediction = self.mean_prediction(prediction)
         variance_prediction = self.variance_prediction(prediction)
 
-        mean_outputs = self.model_mean.forward(x_t, mean_prediction, self.factors, timesteps)
+        mean_outputs = self.mean_strategy.forward(x_t, mean_prediction, self.factors, timesteps)
 
         variance_inputs = VarianceInputs(self.factors, timesteps, variance_prediction)
-        predicted_log_variance = self.model_variance.log_variance(variance_inputs)
-        predicted_variance = self.model_variance.variance(variance_inputs)
+        predicted_log_variance = self.variance_strategy.log_variance(variance_inputs)
+        predicted_variance = self.variance_strategy.variance(variance_inputs)
 
         outputs = LossInputs(
             target_x_start=x_start,
@@ -104,8 +112,8 @@ class GaussianDiffusion(LightningModule):
         mean_prediction = self.mean_prediction(prediction)
         variance_prediction = self.variance_prediction(prediction)
 
-        mean_outputs = self.model_mean.forward(x_t, mean_prediction, self.factors, timesteps)
-        predicted_variance = self.model_variance.variance(VarianceInputs(self.factors, timesteps, variance_prediction))
+        mean_outputs = self.mean_strategy.forward(x_t, mean_prediction, self.factors, timesteps)
+        predicted_variance = self.variance_strategy.variance(VarianceInputs(self.factors, timesteps, variance_prediction))
 
         return self.sampler.sample(mean_outputs, predicted_variance, self.factors, timesteps)
 
@@ -164,8 +172,8 @@ class GaussianDiffusion(LightningModule):
 
     def register_components(self):
         components = {
-            "mean": self.model_mean.__class__.__name__,
-            "variance": self.model_variance.__class__.__name__,
+            "mean": self.mean_strategy.__class__.__name__,
+            "variance": self.variance_strategy.__class__.__name__,
             "loss": self.loss.__class__.__name__,
             "scheduler": self.scheduler.__class__.__name__,
             "model": self.model.__class__.__name__,

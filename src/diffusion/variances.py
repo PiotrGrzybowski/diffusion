@@ -23,7 +23,7 @@ class VarianceStrategy(ABC):
         raise NotImplementedError
 
 
-class FixedSmallVariance:
+class FixedSmallVariance(VarianceStrategy):
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         factors = inputs.factors
 
@@ -41,7 +41,7 @@ class FixedSmallVariance:
         return torch.log(variance)
 
 
-class FixedLargeVariance:
+class FixedLargeVariance(VarianceStrategy):
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         return inputs.factors.betas[inputs.timesteps]
 
@@ -49,7 +49,7 @@ class FixedLargeVariance:
         return torch.log(self.variance(inputs))
 
 
-class DirectVariance:
+class DirectVariance(VarianceStrategy):
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         return torch.exp(inputs.model_output)
 
@@ -57,7 +57,7 @@ class DirectVariance:
         return inputs.model_output
 
 
-class TrainableRangeVariance:
+class TrainableRangeVariance(VarianceStrategy):
     def __init__(self, lower_variance: VarianceStrategy, upper_variance: VarianceStrategy) -> None:
         self.lower_variance = lower_variance
         self.uper_variance = upper_variance

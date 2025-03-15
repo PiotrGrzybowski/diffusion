@@ -1,13 +1,14 @@
 import pytest
-from diffusion.means import DirectMean, EpsilonMean, XStartMean
 from hydra import compose, initialize_config_dir
 from hydra.utils import instantiate
 from rootutils import find_root
 
+from diffusion.means import DirectMean, EpsilonMean, XStartMean
+
 
 @pytest.fixture
 def config_dir() -> str:
-    return str(find_root(__file__, indicator="pyproject.toml") / "configs" / "diffusion" / "mean")
+    return str(find_root(__file__, indicator="pyproject.toml") / "configs" / "diffusion" / "mean_strategy")
 
 
 def test_direct_mean_instantiate(config_dir: str):

@@ -8,6 +8,7 @@ from diffusion.diffusion_factors import Factors
 from diffusion.gaussian_diffusion import GaussianDiffusion
 from diffusion.losses import DiffusionLoss
 from diffusion.means import MeanStrategy
+from diffusion.samplers import Sampler
 from diffusion.variances import VarianceStrategy
 
 
@@ -22,17 +23,18 @@ def test_gaussian_diffusion_instantiate(config_path: str):
 
     with open_dict(cfg):
         cfg.timesteps = 1000
+        cfg.sample_timesteps = 1000
         cfg.in_channels = 3
+        cfg.model.out_channels = 3
 
     diffusion = instantiate(cfg)
 
     assert isinstance(diffusion, GaussianDiffusion)
-    assert isinstance(diffusion.posterior_mean, MeanStrategy)
-    assert isinstance(diffusion.posterior_variance, VarianceStrategy)
-    assert isinstance(diffusion.model_mean, MeanStrategy)
-    assert isinstance(diffusion.model_variance, VarianceStrategy)
+    assert isinstance(diffusion.mean_strategy, MeanStrategy)
+    assert isinstance(diffusion.variance_strategy, VarianceStrategy)
     assert isinstance(diffusion.loss, DiffusionLoss)
     assert isinstance(diffusion.model, nn.Module)
     assert isinstance(diffusion.factors, Factors)
+    assert isinstance(diffusion.sampler, Sampler)
 
     assert diffusion.in_channels == 3
