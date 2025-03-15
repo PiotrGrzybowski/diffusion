@@ -49,7 +49,7 @@ class GaussianDiffusion(LightningModule):
         variance = 1 - self.factors.gammas[timesteps]
         return mean + variance * noise
 
-    def posterior_mean(self, x_start, x_t, timesteps) -> torch.Tensor:
+    def posterior_mean(self, x_start: torch.Tensor, x_t: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         gammas = self.factors.gammas[timesteps]
         gammas_prev = self.factors.gammas_prev[timesteps]
         alphas = self.factors.alphas[timesteps]
@@ -72,22 +72,19 @@ class GaussianDiffusion(LightningModule):
         variance = self.posterior_variance(timesteps)
         return torch.log(variance)
 
-    def posterior_step(self, x_start: torch.Tensor, timesteps: torch.Tensor) -> DiffusionTerms:
-        epsilon = torch.randn_like(x_start)
-        x_t = self.q_sample(timesteps, x_start, epsilon)
-
+    def posterior_step(self, x_start: torch.Tensor, x_t: torch.Tensor, epsilon: torch.Tensor, timesteps: torch.Tensor) -> DiffusionTerms:
         mean = self.posterior_mean(x_start, x_t, timesteps)
         variance = self.posterior_variance(timesteps)
         log_variance = self.posterior_log_variance(timesteps)
 
         return DiffusionTerms(mean, x_start, epsilon, variance, log_variance)
 
-    def model_step(self, x_start: torch.Tensor, timesteps: torch.Tensor) -> DiffusionTerms:
-        prediction = self.model(x_start, timesteps)
+    def model_step(self, x_t: torch.Tensor, timesteps: torch.Tensor) -> DiffusionTerms:
+        prediction = self.model(x_t, timesteps)
         mean_prediction = self.mean_prediction(prediction)
         variance_prediction = self.variance_prediction(prediction)
 
-        mean_outputs = self.mean_strategy.forward(MeanInputs(x_start, mean_prediction, self.factors, timesteps))
+        mean_outputs = self.mean_strategy.forward(MeanInputs(x_t, mean_prediction, self.factors, timesteps))
         variance_outputs = self.variance_strategy.forward(VarianceInputs(self.factors, timesteps, variance_prediction))
 
         mean = mean_outputs.mean
@@ -101,19 +98,18 @@ class GaussianDiffusion(LightningModule):
 
     def training_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x_start, _ = batch
-
         timesteps = torch.randint(0, self.timesteps, (x_start.size(0),)).to(device=x_start.device, dtype=torch.long)
-        target_terms = self.posterior_step(x_start, timesteps)
-        predicted_terms = self.model_step(x_start, timesteps)
+
+        epsilon = torch.randn_like(x_start)
+        x_t = self.q_sample(timesteps, x_start, epsilon)
+
+        target_terms = self.posterior_step(x_start, x_t, epsilon, timesteps)
+        predicted_terms = self.model_step(x_t, timesteps)
 
         loss = self.loss.forward(LossInputs(target_terms, predicted_terms, self.factors, timesteps))
 
         mean_mse = mse_loss(predicted_terms.mean, target_terms.mean)
         mean_epsilon_mse = mse_loss(predicted_terms.epsilon, target_terms.epsilon)
-
-        print(predicted_terms.epsilon[0, 0, :5, :5])
-        print(target_terms.epsilon[0, 0, :5, :5])
-        assert False
 
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         self.log("train_mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
@@ -124,13 +120,17 @@ class GaussianDiffusion(LightningModule):
         x_start, _ = batch
 
         timesteps = torch.randint(0, self.timesteps, (x_start.size(0),)).to(device=x_start.device, dtype=torch.long)
-        posterior_terms = self.posterior_step(x_start, timesteps)
-        predicted_terms = self.model_step(x_start, timesteps)
+        epsilon = torch.randn_like(x_start)
+        x_t = self.q_sample(timesteps, x_start, epsilon)
 
-        loss = self.loss.forward(LossInputs(posterior_terms, predicted_terms, self.factors, timesteps))
+        target_terms = self.posterior_step(x_start, x_t, epsilon, timesteps)
+        predicted_terms = self.model_step(x_t, timesteps)
+
+        loss = self.loss.forward(LossInputs(target_terms, predicted_terms, self.factors, timesteps))
+        mean_mse = mse_loss(predicted_terms.mean, target_terms.mean)
 
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        # self.log("val_mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("val_mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def build_sample_factors(self, steps: int) -> Factors:
