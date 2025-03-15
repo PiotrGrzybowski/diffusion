@@ -143,6 +143,33 @@ class GaussianDiffusion(LightningModule):
                 last_gamma = gamma
         return Factors(torch.tensor(betas)).to(self.device)
 
+    # def sample_loop(self, x: torch.Tensor):
+    #     for timestep in list(range(self.sample_timesteps))[::-1]:
+    #         x_start, _ = batch
+    #         timesteps = torch.randint(0, self.timesteps, (x_start.size(0),)).to(device=x_start.device, dtype=torch.long)
+    #
+    #         x_t = self.q_sample(timesteps, x_start, epsilon)
+    #
+    #         target_terms = self.posterior_step(x_start, x_t, epsilon, timesteps)
+    #         predicted_terms = self.model_step(x_t, timesteps)
+    #
+    #         epsilon = torch.randn_like(x)
+    #         x_t =
+    #
+    #         timesteps = torch.full((x_t.shape[0],), timestep, device=self.device, dtype=torch.long)
+    #         posterior_terms = self.posterior_step(x_t, x_t, torch.randn_like(x_t), timesteps)
+    #         predicted_terms = self.model_step(x_t, timesteps)
+    #         x_prev = self.sampler.sample(predicted_terms, self.factors, timesteps)
+    #         yield x_prev
+    #
+    # @torch.inference_mode()
+    # def sample(self, batch: torch.Tensor, steps: int) -> torch.Tensor:
+    #     x_t = batch
+    #     for x_t in self.sample_loop(x_t):
+    #         pass
+    #     x_t = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
+    #     return x_t
+
     @torch.inference_mode()
     def sample(self, batch: torch.Tensor, steps: int) -> torch.Tensor:
         # original_factors = self.factors
@@ -150,17 +177,12 @@ class GaussianDiffusion(LightningModule):
 
         x_t = batch
         console = Console()
-        indexes = list(range(steps))[::-1]
-        for index in indexes:
-            console.print(f"Samplingen... {indexes[0] - index}/{len(indexes)}", end="\r")
+        for timestep in list(range(steps))[::-1]:
+            console.print(f"Samplingen... {steps - timestep}/{steps}", end="\r")
 
-            timesteps = torch.full((batch.shape[0],), index, device=self.device, dtype=torch.long)
+            timesteps = torch.full((batch.shape[0],), timestep, device=self.device, dtype=torch.long)
             predicted_terms = self.model_step(x_t, timesteps)
-            # posterior_terms = self.posterior_step(x_t, timesteps)
-
-            x_prev = self.sampler.sample(predicted_terms, self.factors, timesteps)
-
-            x_t = x_prev
+            x_t = self.sampler.sample(predicted_terms, self.factors, timesteps)
 
         x_t = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
 
