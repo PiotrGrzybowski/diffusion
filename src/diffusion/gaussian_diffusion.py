@@ -9,6 +9,7 @@ from diffusion.diffusion_factors import Factors
 from diffusion.diffusion_terms import DiffusionTerms
 from diffusion.losses import DiffusionLoss, LossInputs
 from diffusion.means import MeanInputs, MeanStrategy
+from diffusion.metrics import nll
 from diffusion.samplers import Sampler
 from diffusion.schedulers import Scheduler
 from diffusion.variances import VarianceInputs, VarianceStrategy
@@ -108,12 +109,11 @@ class GaussianDiffusion(LightningModule):
 
         loss = self.loss.forward(LossInputs(target_terms, predicted_terms, self.factors, timesteps))
 
-        mean_mse = mse_loss(predicted_terms.mean, target_terms.mean)
-        mean_epsilon_mse = mse_loss(predicted_terms.epsilon, target_terms.epsilon)
-
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log("train_mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log("train_mean_epsilon_mse", mean_epsilon_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
+        metrics = self.calculate_metrics(target_terms, predicted_terms, timesteps, "train_")
+        self.log_dict(metrics, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+
         return loss
 
     def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
@@ -127,11 +127,16 @@ class GaussianDiffusion(LightningModule):
         predicted_terms = self.model_step(x_t, timesteps)
 
         loss = self.loss.forward(LossInputs(target_terms, predicted_terms, self.factors, timesteps))
+
         mean_mse = mse_loss(predicted_terms.mean, target_terms.mean)
 
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         self.log("val_mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
+
+    def test_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        """Test runs both posterior and model step to calculate true NNL."""
+        pass
 
     def build_sample_factors(self, steps: int) -> Factors:
         indexes = np.linspace(0, self.timesteps - 1, steps, dtype=int).tolist()[::-1]
@@ -213,3 +218,16 @@ class GaussianDiffusion(LightningModule):
             return model_output[:, self.in_channels :]
         else:
             return torch.empty(0)
+
+    def calculate_metrics(
+        self, target_terms: DiffusionTerms, predicted_terms: DiffusionTerms, timesteps: torch.Tensor, prefix: str
+    ) -> dict:
+        mean_mse = mse_loss(predicted_terms.mean, target_terms.mean)
+        epsilon_mse = mse_loss(predicted_terms.epsilon, target_terms.epsilon)
+        nll_loss = nll(target_terms, predicted_terms, timesteps, self.timesteps)
+
+        return {
+            f"{prefix}mean_mse": mean_mse,
+            f"{prefix}epsilon_mse": epsilon_mse,
+            f"{prefix}nll_loss": nll_loss,
+        }
