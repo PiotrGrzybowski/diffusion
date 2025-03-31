@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 import torch
-from diffusion.data.mnist_datamodule import MNISTDataModule
 from rootutils import find_root
+
+from diffusion.data.mnist_datamodule import MNISTDataModule
 
 
 @pytest.fixture(scope="package")
@@ -34,7 +35,7 @@ def test_mnist_data_splits(data_path: Path, batch_size: int) -> None:
 
     assert datamodule.data_train is not None
     assert datamodule.data_val is not None
-    assert datamodule.data_test is not None
+    assert datamodule.data_val is not None
 
 
 @pytest.mark.parametrize("batch_size", [32, 128, 256])
@@ -45,7 +46,6 @@ def test_mnist_dataloaders_creation(data_path: Path, batch_size: int) -> None:
 
     assert datamodule.train_dataloader() is not None
     assert datamodule.val_dataloader() is not None
-    assert datamodule.test_dataloader() is not None
 
 
 @pytest.mark.parametrize("batch_size", [32, 128, 256])
@@ -62,9 +62,11 @@ def test_mnist_dataloader_batch(data_path: Path, batch_size: int) -> None:
     assert y.dtype == torch.int64
 
 
-@pytest.mark.parametrize("batch_size", [32, 128, 256])
+@pytest.mark.parametrize("batch_size", [32, 64, 128])
 def test_mnist_filtered(data_path: Path, batch_size: int) -> None:
-    datamodule = MNISTDataModule(path=data_path, batch_size=batch_size, val_split=0.2, labels=[0, 1], samples_per_label=1280)
+    datamodule = MNISTDataModule(
+        path=data_path, batch_size=batch_size, labels=[0, 1], train_samples_per_label=1280, val_samples_per_label=320
+    )
     datamodule.setup()
 
     batch = next(iter(datamodule.train_dataloader()))
@@ -72,5 +74,5 @@ def test_mnist_filtered(data_path: Path, batch_size: int) -> None:
     assert len(x) == batch_size
     assert len(y) == batch_size
 
-    assert len(datamodule.train_dataloader()) == int(1280 * 0.8) * 2 // batch_size
-    assert len(datamodule.val_dataloader()) == int(1280 * 0.2) * 2 // batch_size
+    assert len(datamodule.train_dataloader()) == (1280 * 2) // batch_size
+    assert len(datamodule.val_dataloader()) == (320 * 2) // batch_size

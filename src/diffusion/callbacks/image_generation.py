@@ -19,7 +19,15 @@ class ImageGenerationCallback(Callback):
     def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         if (trainer.current_epoch + 1) % self.every_n_epochs == 0:
             pl_module.eval()
-            result = pl_module.sample(torch.randn(self.shape, device=pl_module.device), steps=pl_module.timesteps)
+
+            batch = torch.randn(self.shape, device=pl_module.device)
+            timesteps = pl_module.sample_timesteps
+
+            for x_t in pl_module.sample(batch, timesteps):
+                pass
+
+            result = x_t.detach().cpu()
+
             path = self.output_dir / "images"
             path.mkdir(exist_ok=True)
             result = make_grid(result, padding=0, nrow=int(math.sqrt(result.shape[0])))

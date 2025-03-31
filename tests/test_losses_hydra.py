@@ -1,4 +1,8 @@
 import pytest
+from hydra import compose, initialize_config_dir
+from hydra.utils import instantiate
+from rootutils import find_root
+
 from diffusion.losses import (
     VLB,
     Hybrid,
@@ -9,9 +13,6 @@ from diffusion.losses import (
     MseMeanXStart,
     MseMeanXStartSimple,
 )
-from hydra import compose, initialize_config_dir
-from hydra.utils import instantiate
-from rootutils import find_root
 
 
 @pytest.fixture
