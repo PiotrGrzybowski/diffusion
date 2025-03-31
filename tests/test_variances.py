@@ -1,5 +1,6 @@
 import pytest
 import torch
+
 from diffusion.diffusion_factors import Factors
 from diffusion.schedulers import LinearScheduler
 from diffusion.variances import DirectVariance, FixedLargeVariance, FixedSmallVariance, TrainableRangeVariance, VarianceInputs
@@ -7,7 +8,8 @@ from diffusion.variances import DirectVariance, FixedLargeVariance, FixedSmallVa
 
 @pytest.fixture
 def inputs():
-    factors = Factors(LinearScheduler(1000, 0.0001, 0.02))
+    betas = LinearScheduler(1000, 0.0001, 0.02).schedule()
+    factors = Factors(betas)
     model_output = torch.tensor(
         [[[[-0.81177425, -1.56413877], [0.82801986, -0.39772224]]], [[[1.74248230, 0.52790087], [-0.64002794, -0.31274268]]]]
     )

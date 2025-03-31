@@ -3,7 +3,7 @@ wandb:
   name: "${run_name}"
   save_dir: "${paths.log_dir}/${task_name}/"
   offline: False
-  log_model: "all"
+  log_model: False
   version: ${run_name}
   anonymous: null 
   project: "${task_name}"

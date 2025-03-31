@@ -53,13 +53,9 @@ def train(cfg: DictConfig):
         log.info("Starting training!")
         trainer.fit(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
-    if cfg.test:
-        log.info("Starting testing!")
-        trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
-
-    if cfg.predict:
-        log.info("Starting prediction!")
-        trainer.predict(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
+    if cfg.validate:
+        log.info("Starting validation!")
+        trainer.validate(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
 
 @custom_main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")

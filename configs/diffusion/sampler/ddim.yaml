@@ -1,0 +1,2 @@
+_target_: diffusion.samplers.DDIMSampler
+eta: 0

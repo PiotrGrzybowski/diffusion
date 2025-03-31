@@ -1,12 +1,14 @@
 import pytest
 import torch
+
 from diffusion.diffusion_factors import Factors
 from diffusion.schedulers import LinearScheduler
 
 
 @pytest.fixture
 def factors():
-    return Factors(LinearScheduler(1000, 0.0001, 0.02))
+    betas = LinearScheduler(1000, 0.0001, 0.02).schedule()
+    return Factors(betas)
 
 
 def test_factors_initialization(factors: Factors):

@@ -1,13 +1,14 @@
 import pytest
-from diffusion.variances import DirectVariance, FixedLargeVariance, FixedSmallVariance, TrainableRangeVariance
 from hydra import compose, initialize_config_dir
 from hydra.utils import instantiate
 from rootutils import find_root
 
+from diffusion.variances import DirectVariance, FixedLargeVariance, FixedSmallVariance, TrainableRangeVariance
+
 
 @pytest.fixture
 def config_dir() -> str:
-    return str(find_root(__file__, indicator="pyproject.toml") / "configs" / "diffusion" / "variance")
+    return str(find_root(__file__, indicator="pyproject.toml") / "configs" / "diffusion" / "variance_strategy")
 
 
 def test_direct_variance_variance_instantiate(config_dir: str):

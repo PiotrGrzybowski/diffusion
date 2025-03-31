@@ -1,11 +1,13 @@
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
-from diffusion.scripts.train import train
 from hydra import compose, initialize_config_dir
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, open_dict
 from rootutils import find_root
+
+from diffusion.scripts.train import train
 
 
 @pytest.fixture
@@ -42,10 +44,17 @@ def test_train_fast_dev_run(cfg_train: DictConfig):
     #     cfg_train.loss = loss_config.loss
 
     HydraConfig().set_config(cfg_train)
-    with open_dict(cfg_train):
-        cfg_train.trainer.fast_dev_run = True
-        cfg_train.trainer.accelerator = "cpu"
-        cfg_train.logger = None
-        cfg_train.callbacks = None
-        cfg_train.test = False
-    train(cfg_train)
+    with TemporaryDirectory() as output_dir:
+        with open_dict(cfg_train):
+            cfg_train.trainer.fast_dev_run = True
+            cfg_train.trainer.accelerator = "cpu"
+            cfg_train.logger = None
+            cfg_train.callbacks = None
+            cfg_train.train = True
+            cfg_train.validate = False
+            cfg_train.paths.output_dir = output_dir
+            cfg_train.run_name = "test"
+            cfg_train.task_name = "test"
+            cfg_train.trainer.check_val_every_n_epoch = 10
+            cfg_train.sample_timesteps = 2
+            train(cfg_train)
