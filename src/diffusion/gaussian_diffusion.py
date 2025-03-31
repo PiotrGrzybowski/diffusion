@@ -155,6 +155,7 @@ class GaussianDiffusion(LightningModule):
 
         times = np.linspace(0, timesteps - 1, timesteps, dtype=int).tolist()[::-1]
 
+        original_factors = self.factors
         self.factors = self.build_sample_factors(len(times))
         for timestep in times:
             timestep = torch.full((x_t.size(0),), timestep, device=x_t.device, dtype=torch.long)
@@ -166,6 +167,7 @@ class GaussianDiffusion(LightningModule):
             x_t = self.sampler.sample(inputs)
             x_prev = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
             yield x_prev
+        self.factors = original_factors
         yield x_prev
 
     def configure_optimizers(self):
