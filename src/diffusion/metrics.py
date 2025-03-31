@@ -1,21 +1,41 @@
 import math
 
 import torch
+from torchmetrics.metric import Metric
 
 from diffusion.diffusion_terms import DiffusionTerms
-from diffusion.gaussian_utils import discretized_gaussian_log_likelihood, gaussian_kl, prior_kl
+from diffusion.gaussian_utils import discretized_gaussian_log_likelihood, gaussian_kl
 
 
-def nll(target_terms: DiffusionTerms, predicted_terms: DiffusionTerms, timesteps: torch.Tensor, max_timesteps: int) -> torch.Tensor:
+def vlb(target_terms: DiffusionTerms, predicted_terms: DiffusionTerms, timesteps: torch.Tensor) -> torch.Tensor:
     loss = gaussian_kl(target_terms.mean, target_terms.log_variance, predicted_terms.mean, predicted_terms.log_variance)
-    prior_nnl = prior_kl(target_terms.mean, target_terms.log_variance)
-    decoder_nnl = -discretized_gaussian_log_likelihood(predicted_terms.x_start, predicted_terms.mean, predicted_terms.variance)
+    decoder_nnl = -discretized_gaussian_log_likelihood(target_terms.x_start, predicted_terms.mean, predicted_terms.log_variance)
 
     decoder_idx = torch.where(timesteps == 0)
-    prior_idx = torch.where(timesteps == max_timesteps - 1)
 
     loss[decoder_idx] = decoder_nnl[decoder_idx]
-    loss[prior_idx] = prior_nnl[prior_idx]
     loss = loss.mean() / math.log(2.0)
 
     return loss
+
+
+class ScalarAverage(Metric):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.add_state("sum", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("total", default=torch.tensor(0), dist_reduce_fx="sum")
+
+    def update(self, value: torch.Tensor):
+        self.sum += value
+        self.total += 1
+
+    def compute(self):
+        return self.sum / self.total
+
+
+if __name__ == "__main__":
+    pass
+    metric = ScalarAverage()
+    metric.update(torch.tensor(1.0))
+    metric.update(torch.tensor(2.0))
+    print(metric.compute())

@@ -30,8 +30,7 @@ run_name: null
 
 tags: ["dev"]
 train: True
-test: False
-predict: True
+validate: False
 
 predict_samples: 4
 

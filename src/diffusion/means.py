@@ -56,7 +56,7 @@ def x_start_from_mean(x_t: torch.Tensor, mean: torch.Tensor, factors: Factors, t
 
 def x_start_from_epsilon(x_t: torch.Tensor, epsilon: torch.Tensor, factors: Factors, timesteps: torch.Tensor):
     gammas = factors.gammas[timesteps]
-    return ((x_t - torch.sqrt(1 - gammas)) / torch.sqrt(gammas)) * epsilon
+    return (x_t - torch.sqrt(1 - gammas) * epsilon) / torch.sqrt(gammas)
 
 
 def mean_from_xstart(x_start: torch.Tensor, x_t: torch.Tensor, factors: Factors, timesteps: torch.Tensor) -> torch.Tensor:

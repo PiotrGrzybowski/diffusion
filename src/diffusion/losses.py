@@ -33,7 +33,7 @@ class MseMeanDirect(DiffusionLoss):
 
 class MseMeanDirectSimple(DiffusionLoss):
     def forward(self, inputs: LossInputs) -> torch.Tensor:
-        return mse_loss(inputs.target.mean, inputs.target.mean)
+        return mse_loss(inputs.target.mean, inputs.predicted.mean)
 
 
 class MseMeanXStart(DiffusionLoss):
@@ -75,7 +75,7 @@ class MseMeanEpsilonSimple(DiffusionLoss):
 class VLB(DiffusionLoss):
     def forward(self, inputs: LossInputs) -> torch.Tensor:
         loss = gaussian_kl(inputs.target.mean, inputs.target.log_variance, inputs.predicted.mean, inputs.predicted.log_variance)
-        decoder_nnl = -discretized_gaussian_log_likelihood(inputs.predicted.x_start, inputs.predicted.mean, inputs.predicted.variance)
+        decoder_nnl = -discretized_gaussian_log_likelihood(inputs.predicted.x_start, inputs.predicted.mean, inputs.predicted.log_variance)
 
         idx = torch.where(inputs.timesteps == 0)
         loss[idx] = decoder_nnl[idx]

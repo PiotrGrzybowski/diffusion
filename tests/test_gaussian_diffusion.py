@@ -1,63 +1,121 @@
+from unittest.mock import Mock
+
 import pytest
 import torch
-from hydra import compose, initialize
-from hydra.utils import instantiate
-from omegaconf import open_dict
 
-from diffusion.diffusion_terms import DiffusionTerms
+from diffusion.diffusion_factors import Factors
 from diffusion.gaussian_diffusion import GaussianDiffusion
 
 
+torch.set_printoptions(precision=10, sci_mode=False)
+
+
 @pytest.fixture
-def diffusion():
-    config_dir = "../configs/diffusion/"
+def diffusion() -> GaussianDiffusion:
+    factors = Factors(betas=torch.tensor([0.2, 0.15, 0.1]))
+    mock = Mock()
+    mock.factors = factors
 
-    with initialize(version_base="1.3", config_path=config_dir):
-        cfg = compose(config_name="gaussian_diffusion.yaml")
-
-    with open_dict(cfg):
-        cfg.timesteps = 1000
-        cfg.sample_timesteps = 1000
-        cfg.in_channels = 3
-        cfg.model.out_channels = 3
-
-    diffusion = instantiate(cfg)
-
-    return diffusion
+    return mock
 
 
-def test_diffusion_q_sample(diffusion):
-    timesteps = torch.tensor([8, 900], dtype=torch.long)
-    x_start = (torch.rand(2, 3, 32, 32) - 0.5) * 2
-    noise = torch.randn_like(x_start)
+def test_q_mean(diffusion: GaussianDiffusion):
+    diffusion.q_mean = GaussianDiffusion.q_mean.__get__(diffusion)
 
-    q_sample = diffusion.q_sample(timesteps, x_start, noise)
+    x_start = torch.tensor([[[[1.0]]]])
+    timesteps = torch.tensor([0, 1, 2])
 
-    assert q_sample.shape == x_start.shape
+    target_mean = torch.tensor([[[[0.89442719]]], [[[0.82462112]]], [[[0.78230428]]]])
+    mean = diffusion.q_mean(timesteps, x_start)
 
-
-def test_model_step(diffusion: GaussianDiffusion):
-    x_start = (torch.rand(2, 3, 32, 32) - 0.5) * 2
-    timesteps = torch.tensor([8, 900], dtype=torch.long)
-
-    output = diffusion.model_step(x_start, timesteps)
-
-    assert isinstance(output, DiffusionTerms)
+    assert torch.allclose(mean, target_mean)
 
 
-def test_posterior_step(diffusion: GaussianDiffusion):
-    x_start = (torch.rand(2, 3, 32, 32) - 0.5) * 2
-    timesteps = torch.tensor([8, 900], dtype=torch.long)
+def test_q_variance(diffusion: GaussianDiffusion):
+    diffusion.q_variance = GaussianDiffusion.q_variance.__get__(diffusion)
 
-    output = diffusion.posterior_step(x_start, timesteps)
+    timesteps = torch.tensor([0, 1, 2])
 
-    assert isinstance(output, DiffusionTerms)
+    target_variance = torch.tensor([[[[0.2]]], [[[0.32]]], [[[0.388]]]])
+    variance = diffusion.q_variance(timesteps)
+
+    assert torch.allclose(variance, target_variance)
 
 
-def test_training_step(diffusion: GaussianDiffusion):
-    x_start = (torch.rand(2, 3, 32, 32) - 0.5) * 2
-    batch = (x_start, torch.empty())
+def test_q_sample(diffusion: GaussianDiffusion):
+    diffusion.q_mean = GaussianDiffusion.q_mean.__get__(diffusion)
+    diffusion.q_variance = GaussianDiffusion.q_variance.__get__(diffusion)
+    diffusion.q_sample = GaussianDiffusion.q_sample.__get__(diffusion)
 
-    output = diffusion.training_step(batch)
+    timesteps = torch.tensor([0, 1, 2])
+    x_start = torch.tensor([[[[1.0]]]])
+    epsilon = torch.tensor([[[[-0.25]]]])
 
-    assert isinstance(output, torch.Tensor)
+    target_q_sample = torch.tensor([[[[0.7826237679]]], [[[0.6831997633]]], [[[0.6265801787]]]])
+    q_sample = diffusion.q_sample(timesteps, x_start, epsilon)
+
+    assert torch.allclose(q_sample, target_q_sample)
+
+
+def test_posterior_mean(diffusion: GaussianDiffusion):
+    diffusion.posterior_mean = GaussianDiffusion.posterior_mean.__get__(diffusion)
+
+    x_start = torch.tensor([[[[1.0]]]])
+    x_t = torch.tensor([[[[0.8]]]])
+    timesteps = torch.tensor([0, 1, 2])
+
+    posterior_mean = diffusion.posterior_mean(x_start, x_t, timesteps)
+    target_posterior_mean = torch.tensor([[[[1.0]]], [[[0.8802399635]]], [[[0.8384665251]]]])
+
+    assert torch.allclose(posterior_mean, target_posterior_mean)
+
+
+def test_posterior_variance(diffusion: GaussianDiffusion):
+    diffusion.posterior_variance = GaussianDiffusion.posterior_variance.__get__(diffusion)
+
+    timesteps = torch.tensor([0, 1, 2])
+
+    target_posterior_variance = torch.tensor([[[[0.0]]], [[[0.0937500000]]], [[[0.0824742317]]]])
+    posterior_variance = diffusion.posterior_variance(timesteps)
+
+    assert torch.allclose(posterior_variance, target_posterior_variance)
+
+
+def test_posterior_log_variance(diffusion: GaussianDiffusion):
+    diffusion.posterior_variance = GaussianDiffusion.posterior_variance.__get__(diffusion)
+    diffusion.posterior_log_variance = GaussianDiffusion.posterior_log_variance.__get__(diffusion)
+
+    timesteps = torch.tensor([0, 1, 2])
+
+    target_posterior_log_variance = torch.tensor([[[[-2.3671236038]]], [[[-2.3671236038]]], [[[-2.4952692986]]]])
+    posterior_log_variance = diffusion.posterior_log_variance(timesteps)
+
+    assert torch.allclose(posterior_log_variance, target_posterior_log_variance)
+
+
+def test_prediction_split_fixed_variance(diffusion: GaussianDiffusion):
+    diffusion.mean_prediction = GaussianDiffusion.mean_prediction.__get__(diffusion)
+    diffusion.variance_prediction = GaussianDiffusion.variance_prediction.__get__(diffusion)
+
+    diffusion.in_channels = 1
+    prediction = torch.rand(3, 1, 28, 28)
+
+    mean_prediction = diffusion.mean_prediction(prediction)
+    variance_prediction = diffusion.variance_prediction(prediction)
+
+    assert mean_prediction.shape == (3, 1, 28, 28)
+    assert variance_prediction.shape == (3, 0, 28, 28)
+
+
+def test_prediction_split_trainable_variance(diffusion: GaussianDiffusion):
+    diffusion.mean_prediction = GaussianDiffusion.mean_prediction.__get__(diffusion)
+    diffusion.variance_prediction = GaussianDiffusion.variance_prediction.__get__(diffusion)
+
+    diffusion.in_channels = 1
+    prediction = torch.rand(3, 2, 28, 28)
+
+    mean_prediction = diffusion.mean_prediction(prediction)
+    variance_prediction = diffusion.variance_prediction(prediction)
+
+    assert mean_prediction.shape == (3, 1, 28, 28)
+    assert variance_prediction.shape == (3, 1, 28, 28)

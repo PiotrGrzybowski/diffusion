@@ -59,7 +59,7 @@ def test_epsilon_mean_strategy(inputs: MeanInputs):
     mean = mean_outputs.mean
 
     target_mean = torch.tensor([[[[0.54486120]]], [[[0.60551941]]]])
-    target_x_start = torch.tensor([[[[0.82924342]]], [[[-34.11800003]]]])
+    target_x_start = torch.tensor([[[[0.49088836]]], [[[-53.38068008]]]])
     target_epsilon = torch.tensor([[[[1.60896802]]], [[[1.50490487]]]])
 
     assert torch.allclose(mean.squeeze(), target_mean.squeeze()), "XStartMean mismatch"
