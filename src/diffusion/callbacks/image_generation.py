@@ -22,7 +22,7 @@ class ImageGenerationCallback(Callback):
             batch = torch.randn(self.shape, device=pl_module.device)
             timesteps = pl_module.sample_timesteps
 
-            for x_t in pl_module.sample(batch, 10):
+            for x_t in pl_module.sample(batch, timesteps):
                 pass
 
             result = x_t.detach().cpu()
