@@ -60,6 +60,14 @@ class FixedLargeVariance(VarianceStrategy):
 
 class DirectVariance(VarianceStrategy):
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        return inputs.model_output.clamp(min=1e-9)
+
+    def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
+        return torch.log(self.variance(inputs))
+
+
+class DirectLogVariance(VarianceStrategy):
+    def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         return torch.exp(inputs.model_output)
 
     def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
