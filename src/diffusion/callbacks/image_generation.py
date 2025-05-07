@@ -5,6 +5,7 @@ from lightning import Callback, LightningModule, Trainer
 from lightning.fabric.utilities.rank_zero import rank_zero_only
 from lightning.pytorch.loggers import WandbLogger
 from PIL import Image
+from rich.console import Console
 from torchvision.utils import make_grid, math
 
 
@@ -23,8 +24,9 @@ class ImageGenerationCallback(Callback):
             batch = torch.randn(self.shape, device=pl_module.device)
             timesteps = pl_module.sample_timesteps
 
-            for x_t in pl_module.sample(batch, timesteps):
-                pass
+            console = Console()
+            for i, x_t in enumerate(pl_module.sample(batch, timesteps)):
+                console.print(f"Predict sampling: {timesteps - i}/{timesteps}", end="\r")
 
             result = x_t.detach().cpu()
 

@@ -3,7 +3,13 @@ import torch
 
 from diffusion.diffusion_factors import Factors
 from diffusion.schedulers import LinearScheduler
-from diffusion.variances import DirectVariance, FixedLargeVariance, FixedSmallVariance, TrainableRangeVariance, VarianceInputs
+from diffusion.variances import (
+    DirectLogVariance,
+    FixedLargeVariance,
+    FixedSmallVariance,
+    TrainableRangeVariance,
+    VarianceInputs,
+)
 
 
 @pytest.fixture
@@ -45,7 +51,7 @@ def test_fixed_large_strategy(inputs: VarianceInputs):
 
 
 def test_trainable_strategy(inputs: VarianceInputs):
-    strategy = DirectVariance()
+    strategy = DirectLogVariance()
 
     variance = strategy.variance(inputs)
     log_variance = strategy.log_variance(inputs)

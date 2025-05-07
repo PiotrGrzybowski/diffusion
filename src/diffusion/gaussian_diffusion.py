@@ -149,6 +149,13 @@ class GaussianDiffusion(LightningModule):
         self.nll_metric.update(nll)
         self.log("nll", self.nll_metric, on_epoch=True, prog_bar=True)
 
+    def on_after_backward(self) -> None:
+        norm = 0.0
+        for p in self.model.parameters():
+            norm += p.grad.data.norm(2).item() ** 2
+        norm = norm**0.5
+        self.log("gradient_norm", norm, on_step=True, on_epoch=True, prog_bar=True)
+
     @torch.inference_mode()
     def sample(self, batch: torch.Tensor, timesteps: int):
         x_t = batch
@@ -184,7 +191,7 @@ class GaussianDiffusion(LightningModule):
         self.save_hyperparameters(components)
 
     def mean_prediction(self, model_output: torch.Tensor) -> torch.Tensor:
-        return model_output[:, : self.in_channels]
+        return model_output[:, : self.in_channels].contiguous()
 
     def variance_prediction(self, model_output: torch.Tensor) -> torch.Tensor:
         return model_output[:, self.in_channels :]
