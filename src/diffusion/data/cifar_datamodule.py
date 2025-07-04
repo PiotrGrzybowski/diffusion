@@ -1,5 +1,6 @@
 import ssl
 from pathlib import Path
+from tempfile import gettempdir
 
 import torch
 from lightning import LightningDataModule
@@ -26,18 +27,19 @@ class GaussianDataset(Dataset):
 class CIFAR10DataModule(LightningDataModule):
     def __init__(
         self,
-        path: Path = Path("/tmp/data"),
+        dataset_name: str = "cifar10",
+        path: Path = Path(gettempdir()),
         val_split: float = 0.95,
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
-        predict_size: int = 16,
+        predict_samples: int = 16,
     ) -> None:
         super().__init__()
 
         self.path = path
         self.batch_size = batch_size
-        self.predict_size = predict_size
+        self.predict_samples = predict_samples
         self.val_split = val_split
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -66,9 +68,9 @@ class CIFAR10DataModule(LightningDataModule):
             train_set, val_set = random_split(train_set, lengths=[train_length, val_length], generator=generator)
 
             self.data_train = train_set
-            self.data_val = val_set
-            self.data_test = test_set
-            self.data_predict = GaussianDataset((self.predict_size, 3, 32, 32))
+            self.data_val = test_set
+            # self.data_test = test_set
+            self.data_predict = GaussianDataset((self.predict_samples, 3, 32, 32))
 
     def train_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         if self.data_train:
@@ -94,19 +96,19 @@ class CIFAR10DataModule(LightningDataModule):
         else:
             raise RuntimeError("The validation dataset is not loaded.")
 
-    def test_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
-        self.data_predict = GaussianDataset((self.predict_size, 1, 28, 28))
-        if self.data_test:
-            return DataLoader(
-                dataset=self.data_test,
-                batch_size=self.batch_size_per_device,
-                num_workers=self.num_workers,
-                pin_memory=self.pin_memory,
-                shuffle=False,
-            )
-        else:
-            raise RuntimeError("The test dataset is not loaded.")
-
+    # def test_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
+    #     self.data_predict = GaussianDataset((self.predict_size, 1, 28, 28))
+    #     if self.data_test:
+    #         return DataLoader(
+    #             dataset=self.data_test,
+    #             batch_size=self.batch_size_per_device,
+    #             num_workers=self.num_workers,
+    #             pin_memory=self.pin_memory,
+    #             shuffle=False,
+    #         )
+    #     else:
+    #         raise RuntimeError("The test dataset is not loaded.")
+    #
     def predict_dataloader(self) -> DataLoader[torch.Tensor]:
         if self.data_predict:
             return DataLoader(
@@ -146,9 +148,7 @@ if __name__ == "__main__":
 
     train_loader = mnist.train_dataloader()
     val_loader = mnist.val_dataloader()
-    test_loader = mnist.test_dataloader()
 
-    print(len(train_loader.dataset), len(val_loader.dataset), len(test_loader.dataset))
+    print(len(train_loader.dataset), len(val_loader.dataset))
     print(train_loader.dataset[0][0].shape)
     print(val_loader.dataset[0][0].shape)
-    print(test_loader.dataset[0][0].shape)
