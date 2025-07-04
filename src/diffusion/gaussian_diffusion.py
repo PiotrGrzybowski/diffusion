@@ -9,7 +9,7 @@ from diffusion.diffusion_factors import Factors
 from diffusion.diffusion_terms import DiffusionTerms
 from diffusion.losses import DiffusionLoss, LossInputs
 from diffusion.means import MeanInputs, MeanStrategy
-from diffusion.metrics import ScalarAverage, vlb
+from diffusion.metrics import ScalarAverage, VarianceKL, vlb
 from diffusion.samplers import SampleInputs, Sampler
 from diffusion.schedulers import Scheduler
 from diffusion.variances import VarianceInputs, VarianceStrategy
@@ -57,6 +57,7 @@ class GaussianDiffusion(LightningModule):
 
         self.timestep_sampler = TimestepSampler(timesteps)
         self.mean_mse = MeanSquaredError()
+        self.variance_kl = VarianceKL()
         self.nll_metric = ScalarAverage()
 
         self.register_components()
@@ -130,9 +131,11 @@ class GaussianDiffusion(LightningModule):
 
         loss = self.loss.forward(LossInputs(target_terms, predicted_terms, self.factors, timesteps))
         mean_mse = self.mean_mse(predicted_terms.mean, target_terms.mean)
+        variance_kl = self.variance_kl(target_terms.log_variance, predicted_terms.log_variance)
 
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         self.log("mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("variance_kl", variance_kl, on_step=True, on_epoch=True, prog_bar=True)
 
         return loss
 

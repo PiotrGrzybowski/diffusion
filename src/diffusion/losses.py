@@ -1,13 +1,18 @@
-import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+import numpy as np
 import torch
 from torch.nn.functional import mse_loss
 
 from diffusion.diffusion_factors import Factors
 from diffusion.diffusion_terms import DiffusionTerms
 from diffusion.gaussian_utils import discretized_gaussian_log_likelihood, gaussian_kl
+
+
+def mean_flat(tensor: torch.Tensor) -> torch.Tensor:
+    """Compute the mean of a tensor while flattening it."""
+    return tensor.mean(dim=list(range(1, len(tensor.shape))))
 
 
 @dataclass
@@ -74,14 +79,16 @@ class MseMeanEpsilonSimple(DiffusionLoss):
 
 class VLB(DiffusionLoss):
     def forward(self, inputs: LossInputs) -> torch.Tensor:
-        loss = gaussian_kl(inputs.target.mean, inputs.target.log_variance, inputs.predicted.mean, inputs.predicted.log_variance)
-        decoder_nnl = -discretized_gaussian_log_likelihood(inputs.predicted.x_start, inputs.predicted.mean, inputs.predicted.log_variance)
+        kl_loss = gaussian_kl(inputs.target.mean, inputs.target.log_variance, inputs.predicted.mean, inputs.predicted.log_variance)
+        decoder_nnl = -discretized_gaussian_log_likelihood(inputs.target.x_start, inputs.predicted.mean, inputs.predicted.log_variance)
+
+        kl_loss = mean_flat(kl_loss) / np.log(2.0)
+        decoder_nnl = mean_flat(decoder_nnl) / np.log(2.0)
 
         idx = torch.where(inputs.timesteps == 0)
-        loss[idx] = decoder_nnl[idx]
-        loss = loss.mean() / math.sqrt(2.0)
+        kl_loss[idx] = decoder_nnl[idx]
 
-        return loss
+        return kl_loss.mean()
 
 
 class Hybrid(DiffusionLoss):

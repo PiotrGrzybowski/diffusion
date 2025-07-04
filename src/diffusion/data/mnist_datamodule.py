@@ -9,7 +9,7 @@ from torchvision.datasets import VisionDataset
 from torchvision.transforms import transforms
 
 from diffusion.data.dataset_map import DatasetMap
-from diffusion.data.filtered_mnist import FilteredMNIST
+from diffusion.data.filtered_mnist import FilteredDataset
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -83,10 +83,10 @@ class MNISTDataModule(LightningDataModule):
     def setup(self, stage: str | None = None) -> None:
         self._check_batch_size_compatibility()
         if not self._is_setup():
-            train_dataset = FilteredMNIST(
+            train_dataset = FilteredDataset(
                 self.dataset_class(self.path, train=True, transform=self.transforms), self.labels, self.train_samples_per_label
             )
-            test_dataset = FilteredMNIST(
+            test_dataset = FilteredDataset(
                 self.dataset_class(self.path, train=False, transform=self.transforms), self.labels, self.val_samples_per_label
             )
 

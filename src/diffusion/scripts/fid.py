@@ -1,7 +1,5 @@
-from pathlib import Path
-
+import torch
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader, TensorDataset
 from torchmetrics.image.fid import FrechetInceptionDistance
 from tqdm import tqdm
 
@@ -49,9 +47,8 @@ transform = transforms.Compose(
 
 import hydra
 import rootutils
-import torch
 from lightning import LightningDataModule
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
 from diffusion.utils.extras import extras
 from diffusion.utils.ranked_logger import RankedLogger
@@ -64,63 +61,71 @@ configs_path = root_path / "configs"
 
 log = RankedLogger(__name__, rank_zero_only=True)
 
-device = "cuda:0"
+device = "cpu"  # "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
-def fid(sample_config: DictConfig):
-    run_path = Path(sample_config.paths.output_dir)
-
-    cfg = OmegaConf.load(run_path / "config.yaml")
-    cfg.data.batch_size = sample_config.batch_size
-    # cfg.data.predict_samples = sample_config.predict_samples
-
+def fid(cfg: DictConfig):
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
-    print(datamodule)
-
     datamodule.prepare_data()
     datamodule.setup("fit")
+    print(datamodule)
+
+    # datamodule.prepare_data()
+    # datamodule.setup("fit")
     train_loader = datamodule.train_dataloader()
-    test_loader = datamodule.test_dataloader()
-    if (run_path / "fid.pt").exists():
-        log.info(f"Loading FID from {run_path / 'fid.pt'}")
-        fid = torch.load(run_path / "fid.pt")
-    else:
-        log.info(f"Instantiating datamodule <{cfg.data._target_}>")
-        fid = FrechetInceptionDistance(feature=2048).to(device)
-        total = 0
-        for batch in tqdm(train_loader):
-            x, _ = batch
-            total += len(x)
-            x = x.to(device)
-            x = ((x + 1) * 127.5).clamp(0, 255).to(torch.uint8)
-            x = x.expand(-1, 3, -1, -1)
-            fid.update(x, real=True)
-            # if total > 5000:
-            #     break
+    test_loader = datamodule.val_dataloader()
 
-        torch.save(fid, run_path / "fid.pt")
+    fid = FrechetInceptionDistance(feature=2048, reset_real_features=False, normalize=False).to(device)
 
-        print(f"Total real: {total}")
-    images = torch.load(run_path / "predictions/result.pt")
-    dataset = TensorDataset(images)
-    dataloader = DataLoader(dataset, batch_size=sample_config.batch_size, shuffle=False)
-    # test_loader = dataloader
-    total = 0
-    for batch in tqdm(test_loader):
-        # x, _ = batch
-        x = batch[0]
-        total += len(x)
-        x = x.to(device)
+    for batch in tqdm(train_loader):
+        x, _ = batch
         x = ((x + 1) * 127.5).clamp(0, 255).to(torch.uint8)
-        x = x.expand(-1, 3, -1, -1)
-        fid.update(x, real=False)
-        if total > 1000:
-            break
+        print(x.shape)
+        print(x.min(), x.max())
 
-    print("Computing FID...")
-    print(f"Total fake: {total}")
-    print(fid.compute())
+        fid.update(x, real=True)
+        break
 
+    # if (run_path / "fid.pt").exists():
+    #     log.info(f"Loading FID from {run_path / 'fid.pt'}")
+    #     fid = torch.load(run_path / "fid.pt")
+    # else:
+    #     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
+    #     fid = FrechetInceptionDistance(feature=2048).to(device)
+    #     total = 0
+    #     for batch in tqdm(train_loader):
+    #         x, _ = batch
+    #         total += len(x)
+    #         x = x.to(device)
+    #         x = ((x + 1) * 127.5).clamp(0, 255).to(torch.uint8)
+    #         x = x.expand(-1, 3, -1, -1)
+    #         fid.update(x, real=True)
+    #         # if total > 5000:
+    #         #     break
+    #
+    #     torch.save(fid, run_path / "fid.pt")
+    #
+    #     print(f"Total real: {total}")
+    # images = torch.load(run_path / "predictions/result.pt")
+    # dataset = TensorDataset(images)
+    # dataloader = DataLoader(dataset, batch_size=sample_config.batch_size, shuffle=False)
+    # # test_loader = dataloader
+    # total = 0
+    # for batch in tqdm(test_loader):
+    #     # x, _ = batch
+    #     x = batch[0]
+    #     total += len(x)
+    #     x = x.to(device)
+    #     x = ((x + 1) * 127.5).clamp(0, 255).to(torch.uint8)
+    #     x = x.expand(-1, 3, -1, -1)
+    #     fid.update(x, real=False)
+    #     if total > 1000:
+    #         break
+    #
+    # print("Computing FID...")
+    # print(f"Total fake: {total}")
+    # print(fid.compute())
+    #
     #     torch.save(fid, run_path / "fid.pt")
     #
     # images = torch.load(run_path / "predictions/result.pt")
@@ -138,7 +143,7 @@ def fid(sample_config: DictConfig):
     # print(score)
 
 
-@custom_main(version_base="1.3", config_path=str(configs_path), config_name="sample.yaml")
+@custom_main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")
 def main(cfg: DictConfig) -> float | None:
     extras(cfg)
     fid(cfg)
