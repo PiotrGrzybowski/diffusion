@@ -4,9 +4,12 @@ from tempfile import gettempdir
 
 import torch
 from lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import transforms
+
+from diffusion.data.dataset_map import DatasetMap
+from diffusion.data.filtered_mnist import FilteredDataset
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -39,6 +42,7 @@ class CIFAR10DataModule(LightningDataModule):
 
         self.path = path
         self.batch_size = batch_size
+        self.dataset_class = DatasetMap.get_dataset_class(dataset_name.lower())
         self.predict_samples = predict_samples
         self.val_split = val_split
         self.num_workers = num_workers
@@ -62,15 +66,11 @@ class CIFAR10DataModule(LightningDataModule):
     def setup(self, stage: str | None = None) -> None:
         self._check_batch_size_compatibility()
         if not self._is_setup():
-            generator = torch.Generator().manual_seed(42)
-            train_set, test_set = self._load()
-            train_length, val_length = self._train_val_lengths(train_set, self.val_split)
-            train_set, val_set = random_split(train_set, lengths=[train_length, val_length], generator=generator)
+            train_dataset = FilteredDataset(self.dataset_class(self.path, train=True, transform=self.transforms), None, None)
+            test_dataset = FilteredDataset(self.dataset_class(self.path, train=False, transform=self.transforms), None, 8)
 
-            self.data_train = train_set
-            self.data_val = test_set
-            # self.data_test = test_set
-            self.data_predict = GaussianDataset((self.predict_samples, 3, 32, 32))
+            self.data_train = train_dataset
+            self.data_val = test_dataset
 
     def train_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         if self.data_train:

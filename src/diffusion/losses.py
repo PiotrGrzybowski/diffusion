@@ -8,7 +8,11 @@ from torch.nn.functional import mse_loss
 from diffusion.diffusion_factors import Factors
 from diffusion.diffusion_terms import DiffusionTerms
 from diffusion.gaussian_utils import discretized_gaussian_log_likelihood, gaussian_kl
-from improved_diffusion.nn import mean_flat
+
+
+def mean_flat(tensor: torch.Tensor) -> torch.Tensor:
+    """Compute the mean of a tensor while flattening it."""
+    return tensor.mean(dim=list(range(1, len(tensor.shape))))
 
 
 @dataclass
@@ -84,7 +88,7 @@ class VLB(DiffusionLoss):
         idx = torch.where(inputs.timesteps == 0)
         kl_loss[idx] = decoder_nnl[idx]
 
-        return kl_loss
+        return kl_loss.mean()
 
 
 class Hybrid(DiffusionLoss):

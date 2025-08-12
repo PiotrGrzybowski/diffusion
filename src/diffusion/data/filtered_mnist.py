@@ -1,11 +1,11 @@
 from collections import defaultdict
 
 import torch
-from torchvision.datasets import MNIST, VisionDataset
+from torchvision.datasets import VisionDataset
 
 
-class FilteredMNIST(VisionDataset):
-    def __init__(self, dataset: MNIST, labels: list[int] | None = None, samples_per_label: int | None = None) -> None:
+class FilteredDataset(VisionDataset):
+    def __init__(self, dataset: VisionDataset, labels: list[int] | None = None, samples_per_label: int | None = None) -> None:
         """A filtered MNIST dataset that includes only specific labels and a limited number of samples per class.
 
         Args:
