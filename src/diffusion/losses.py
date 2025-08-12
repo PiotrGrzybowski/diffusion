@@ -84,7 +84,7 @@ class VLB(DiffusionLoss):
         idx = torch.where(inputs.timesteps == 0)
         kl_loss[idx] = decoder_nnl[idx]
 
-        return kl_loss
+        return kl_loss.mean()
 
 
 class Hybrid(DiffusionLoss):
