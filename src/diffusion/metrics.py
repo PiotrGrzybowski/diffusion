@@ -33,9 +33,27 @@ class ScalarAverage(Metric):
         return self.sum / self.total
 
 
+class VarianceKL(Metric):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.add_state("sum", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("total", default=torch.tensor(0), dist_reduce_fx="sum")
+
+    def update(self, target_log_variance: torch.Tensor, predicted_log_variance: torch.Tensor):
+        loss = gaussian_kl(
+            torch.zeros_like(target_log_variance), target_log_variance, torch.zeros_like(predicted_log_variance), predicted_log_variance
+        )
+        self.sum += loss
+        self.total += 1
+
+    def compute(self):
+        return self.sum / self.total
+
+
 if __name__ == "__main__":
     pass
     metric = ScalarAverage()
-    metric.update(torch.tensor(1.0))
-    metric.update(torch.tensor(2.0))
+    metric = VarianceKL()
+    metric.update(torch.tensor(1.0), torch.tensor(0.5))
+    metric.update(torch.tensor(2.0), torch.tensor(1.0))
     print(metric.compute())
