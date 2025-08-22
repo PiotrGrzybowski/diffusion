@@ -6,9 +6,10 @@ defaults:
   - logger: wandb
 
 accelerator: gpu
-task_name: mnist_diffusion
+task_name: cifar_release_1
 run_name: icy-horizon-51
 ckpt_name: last.ckpt
 show: True
-samples: 4
+samples: 1280
+batch_size: 128
 sample_timesteps: 1000

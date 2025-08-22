@@ -56,8 +56,11 @@ class GaussianDiffusion(LightningModule):
         self.sampler = sampler
 
         self.timestep_sampler = TimestepSampler(timesteps)
-        self.mean_mse = MeanSquaredError()
-        self.variance_kl = VarianceKL()
+        self.train_mean_mse = MeanSquaredError()
+        self.val_mean_mse = MeanSquaredError()
+        self.train_variance_kl = VarianceKL()
+        self.val_variance_kl = VarianceKL()
+
         self.nll_metric = ScalarAverage()
 
         self.register_components()
@@ -130,27 +133,59 @@ class GaussianDiffusion(LightningModule):
         target_terms, predicted_terms = self.diffusion_step(x_start, timesteps)
 
         loss = self.loss.forward(LossInputs(target_terms, predicted_terms, self.factors, timesteps))
-        mean_mse = self.mean_mse(predicted_terms.mean, target_terms.mean)
-        variance_kl = self.variance_kl(target_terms.log_variance, predicted_terms.log_variance)
+        mean_mse = self.train_mean_mse(predicted_terms.mean, target_terms.mean)
+        variance_kl = self.train_variance_kl(target_terms.log_variance, predicted_terms.log_variance)
 
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
-        self.log("mean_mse", mean_mse, on_step=True, on_epoch=True, prog_bar=True)
-        self.log("variance_kl", variance_kl, on_step=True, on_epoch=True, prog_bar=True)
+        self.log_dict(
+            {
+                "train/mean_mse": mean_mse,
+                "train/variance_kl": variance_kl,
+                "train/loss": loss,
+            },
+            on_epoch=True,
+            on_step=True,
+            prog_bar=True,
+            add_dataloader_idx=False,
+            sync_dist=True,
+        )
 
         return loss
 
-    def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor]):
-        x_start, _ = batch
-        console = Console()
-        nll = torch.tensor(0.0, device=self.device)
+    def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int, dataloader_idx: int) -> None:
+        if dataloader_idx == 0:
+            x_start, _ = batch
+            timesteps = self.timestep_sampler.sample_like(x_start, self.device)
 
-        for timestep in list(range(self.sample_timesteps))[::-1]:
-            timesteps = self.timestep_sampler.full_like(x_start, timestep, self.device)
             target_terms, predicted_terms = self.diffusion_step(x_start, timesteps)
-            nll += vlb(target_terms, predicted_terms, timesteps)
-            console.print(f"Val sampling: {self.sample_timesteps - timestep}/{self.sample_timesteps}, nll={nll}", end="\r")
-        self.nll_metric.update(nll)
-        self.log("nll", self.nll_metric, on_epoch=True, prog_bar=True)
+
+            loss = self.loss.forward(LossInputs(target_terms, predicted_terms, self.factors, timesteps))
+            mean_mse = self.val_mean_mse(predicted_terms.mean, target_terms.mean)
+            variance_kl = self.val_variance_kl(target_terms.log_variance, predicted_terms.log_variance)
+
+            self.log_dict(
+                {
+                    "val/mean_mse": mean_mse,
+                    "val/variance_kl": variance_kl,
+                    "val/loss": loss,
+                },
+                on_epoch=True,
+                on_step=True,
+                prog_bar=True,
+                add_dataloader_idx=False,
+                sync_dist=True,
+            )
+        else:
+            x_start, _ = batch
+            console = Console()
+            nll = torch.tensor(0.0, device=self.device)
+
+            for timestep in list(range(self.sample_timesteps))[::-1]:
+                timesteps = self.timestep_sampler.full_like(x_start, timestep, self.device)
+                target_terms, predicted_terms = self.diffusion_step(x_start, timesteps)
+                nll += vlb(target_terms, predicted_terms, timesteps)
+                console.print(f"Val sampling: {self.sample_timesteps - timestep}/{self.sample_timesteps}, nll={nll}", end="\r")
+            self.nll_metric.update(nll)
+            self.log("nll", self.nll_metric, on_epoch=True, prog_bar=True, add_dataloader_idx=False)
 
     def on_after_backward(self) -> None:
         norm = 0.0

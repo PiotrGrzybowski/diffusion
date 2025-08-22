@@ -38,6 +38,7 @@ def sample(cfg: DictConfig):
     loggers = instantiate_loggers(cfg.get("logger"))
 
     ckpt_path = run_path / "checkpoints" / cfg.ckpt_name
+
     state_dict = torch.load(ckpt_path)["state_dict"]
     model.load_state_dict(state_dict)
     module = fabric.setup_module(model)
