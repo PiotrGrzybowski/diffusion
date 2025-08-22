@@ -67,10 +67,12 @@ class CIFAR10DataModule(LightningDataModule):
         self._check_batch_size_compatibility()
         if not self._is_setup():
             train_dataset = FilteredDataset(self.dataset_class(self.path, train=True, transform=self.transforms), None, None)
-            test_dataset = FilteredDataset(self.dataset_class(self.path, train=False, transform=self.transforms), None, 8)
+            val_dataset = FilteredDataset(self.dataset_class(self.path, train=False, transform=self.transforms), None, None)
+            sample_dataset = FilteredDataset(self.dataset_class(self.path, train=False, transform=self.transforms), None, 8)
 
             self.data_train = train_dataset
-            self.data_val = test_dataset
+            self.data_val = val_dataset
+            self.data_sample = sample_dataset
 
     def train_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         if self.data_train:
@@ -84,31 +86,26 @@ class CIFAR10DataModule(LightningDataModule):
         else:
             raise RuntimeError("The training dataset is not loaded.")
 
-    def val_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
+    def val_dataloader(self) -> list[DataLoader[torch.Tensor]]:
         if self.data_val:
-            return DataLoader(
+            validation_dataloader = DataLoader(
                 dataset=self.data_val,
                 batch_size=self.batch_size_per_device,
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory,
                 shuffle=False,
             )
+            sample_dataloader = DataLoader(
+                dataset=self.data_sample,
+                batch_size=self.predict_samples,
+                num_workers=self.num_workers,
+                pin_memory=self.pin_memory,
+                shuffle=False,
+            )
+            return [validation_dataloader, sample_dataloader]
         else:
             raise RuntimeError("The validation dataset is not loaded.")
 
-    # def test_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
-    #     self.data_predict = GaussianDataset((self.predict_size, 1, 28, 28))
-    #     if self.data_test:
-    #         return DataLoader(
-    #             dataset=self.data_test,
-    #             batch_size=self.batch_size_per_device,
-    #             num_workers=self.num_workers,
-    #             pin_memory=self.pin_memory,
-    #             shuffle=False,
-    #         )
-    #     else:
-    #         raise RuntimeError("The test dataset is not loaded.")
-    #
     def predict_dataloader(self) -> DataLoader[torch.Tensor]:
         if self.data_predict:
             return DataLoader(

@@ -42,7 +42,7 @@ class VarianceKL(Metric):
     def update(self, target_log_variance: torch.Tensor, predicted_log_variance: torch.Tensor):
         loss = gaussian_kl(
             torch.zeros_like(target_log_variance), target_log_variance, torch.zeros_like(predicted_log_variance), predicted_log_variance
-        )
+        ).mean()
         self.sum += loss
         self.total += 1
 
