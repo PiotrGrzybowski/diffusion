@@ -98,10 +98,12 @@ class Hybrid(DiffusionLoss):
         self.omega = omega
 
     def forward(self, inputs: LossInputs) -> torch.Tensor:
-        frozen_mean = inputs.predicted.mean.detach()
         mean_loss = self.mean_loss.forward(inputs)
 
-        inputs.predicted_mean = frozen_mean
+        inputs.predicted.mean = inputs.predicted.mean.detach()
+        inputs.predicted.epsilon = inputs.predicted.epsilon.detach()
+        inputs.predicted.x_start = inputs.predicted.x_start.detach()
+
         variance_loss = self.variance_loss.forward(inputs)
 
         return mean_loss + self.omega * variance_loss
