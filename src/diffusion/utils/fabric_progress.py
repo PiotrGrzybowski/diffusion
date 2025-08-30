@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from contextlib import contextmanager
 
 from lightning import Fabric
+from rich.console import Console
+from rich.logging import RichHandler
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -13,7 +16,51 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-from .ranked_logger import RankedLogger
+
+class RichRankedLogger:
+    """A Rich-compatible multi-GPU-friendly logger that works with progress bars."""
+
+    def __init__(self, name: str, rank_zero_only: bool = False, console: Console | None = None):
+        self.name = name
+        self.rank_zero_only = rank_zero_only
+        self.console = console or Console()
+
+        # Set up Rich logging handler that shares the console with progress bars
+        self.logger = logging.getLogger(name)
+
+        # Clear any existing handlers to avoid conflicts
+        self.logger.handlers.clear()
+
+        # Add Rich handler that uses the same console as progress bars
+        rich_handler = RichHandler(console=self.console, show_path=False, show_time=True, rich_tracebacks=True, markup=True)
+        rich_handler.setFormatter(logging.Formatter("%(message)s"))
+        self.logger.addHandler(rich_handler)
+        self.logger.setLevel(logging.INFO)
+
+        # Prevent propagation to root logger
+        self.logger.propagate = False
+
+    def info(self, message: str, rank: int | None = None):
+        """Log info message."""
+        if self.rank_zero_only:
+            # For rank zero only logging (similar to original RankedLogger)
+            self.logger.info(f"[bold blue][INFO][/bold blue] {message}")
+        else:
+            self.logger.info(f"[bold blue][INFO][/bold blue] {message}")
+
+    def warning(self, message: str, rank: int | None = None):
+        """Log warning message."""
+        if self.rank_zero_only:
+            self.logger.warning(f"[bold yellow][WARNING][/bold yellow] {message}")
+        else:
+            self.logger.warning(f"[bold yellow][WARNING][/bold yellow] {message}")
+
+    def error(self, message: str, rank: int | None = None):
+        """Log error message."""
+        if self.rank_zero_only:
+            self.logger.error(f"[bold red][ERROR][/bold red] {message}")
+        else:
+            self.logger.error(f"[bold red][ERROR][/bold red] {message}")
 
 
 class FabricProgressLogger:
@@ -36,9 +83,14 @@ class FabricProgressLogger:
             log_interval: Interval for progress logging (every N steps)
         """
         self.fabric = fabric
-        self.log = RankedLogger(name, rank_zero_only=True)
         self.show_progress = show_progress if show_progress is not None else (fabric.global_rank == 0)
         self.log_interval = log_interval
+
+        # Create shared console for both progress bars and logging
+        self.console = Console()
+
+        # Use Rich-compatible logger that shares the same console
+        self.log = RichRankedLogger(name, rank_zero_only=True, console=self.console)
 
         # Rich progress columns
         self.columns = (
@@ -57,7 +109,8 @@ class FabricProgressLogger:
     def progress_context(self):
         """Context manager for progress tracking."""
         if self.show_progress:
-            self._progress = Progress(*self.columns)
+            # Use the same console for progress bars as for logging
+            self._progress = Progress(*self.columns, console=self.console)
             with self._progress as progress:
                 self._progress = progress
                 try:
@@ -131,21 +184,21 @@ class FabricProgressLogger:
             self._progress.update(task_id, **update_kwargs)
 
             # Log progress at intervals or when forced
-            if force_log or (self._progress.tasks[task_id].completed % self.log_interval == 0):
-                task = self._progress.tasks[task_id]
-                completed = task.completed
-                total = task.total
-                percentage = (completed / total * 100) if total > 0 else 0
-
-                if log_message:
-                    self.log.info(f"{log_message} [{completed}/{total}] ({percentage:.1f}%)")
-                else:
-                    task_title = task.fields.get("title", name)
-                    self.log.info(f"{task_title}: [{completed}/{total}] ({percentage:.1f}%)")
-
-        elif log_message:
-            # Log even without progress bars
-            self.log.info(log_message)
+            # if force_log or (self._progress.tasks[task_id].completed % self.log_interval == 0):
+            #     task = self._progress.tasks[task_id]
+            #     completed = task.completed
+            #     total = task.total
+            #     percentage = (completed / total * 100) if total > 0 else 0
+            #
+            #     if log_message:
+            #         self.log.info(f"{log_message} [{completed}/{total}] ({percentage:.1f}%)")
+            #     else:
+            #         task_title = task.fields.get("title", name)
+            #         self.log.info(f"{task_title}: [{completed}/{total}] ({percentage:.1f}%)")
+            #
+        # elif log_message:
+        #     # Log even without progress bars
+        #     self.log.info(log_message)
 
     def reset_task(self, name: str, total: int, title: str | None = None) -> None:
         """Reset a task's progress."""
@@ -158,15 +211,15 @@ class FabricProgressLogger:
 
     def finish_task(self, name: str, message: str | None = None) -> None:
         """Mark a task as finished."""
-        if message:
-            self.log.info(f"Finished: {message}")
+        # if message:
+        #     self.log.info(f"Finished: {message}")
 
         if name in self._tasks and self._progress is not None:
             task_id = self._tasks[name]
             task = self._progress.tasks[task_id]
-            if not message:
-                task_title = task.fields.get("title", name)
-                self.log.info(f"Finished: {task_title}")
+            # if not message:
+            #     task_title = task.fields.get("title", name)
+            #     self.log.info(f"Finished: {task_title}")
 
     def log_info(self, message: str, rank: int | None = None) -> None:
         """Log an info message."""
