@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 
-from lightning import Fabric
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import (
@@ -68,29 +67,34 @@ class FabricProgressLogger:
 
     def __init__(
         self,
-        fabric: Fabric,
+        rank: int = 0,
         name: str = __name__,
         show_progress: bool | None = None,
         log_interval: int = 10,
+        logger: RichRankedLogger | None = None,
     ):
         """
         Initialize the Fabric progress logger.
 
         Args:
-            fabric: Lightning Fabric instance
+            rank: Process rank (0 for single GPU, fabric.global_rank for multi-GPU)
             name: Logger name
             show_progress: Whether to show progress bars. If None, shows only on rank 0
             log_interval: Interval for progress logging (every N steps)
+            logger: Optional pre-created logger to share console with
         """
-        self.fabric = fabric
-        self.show_progress = show_progress if show_progress is not None else (fabric.global_rank == 0)
+        self.show_progress = show_progress if show_progress is not None else (rank == 0)
         self.log_interval = log_interval
 
-        # Create shared console for both progress bars and logging
-        self.console = Console()
-
-        # Use Rich-compatible logger that shares the same console
-        self.log = RichRankedLogger(name, rank_zero_only=True, console=self.console)
+        if logger is not None:
+            # Use provided logger and its console
+            self.log = logger
+            self.console = logger.console
+        else:
+            # Create shared console for both progress bars and logging
+            self.console = Console()
+            # Use Rich-compatible logger that shares the same console
+            self.log = RichRankedLogger(name, rank_zero_only=True, console=self.console)
 
         # Rich progress columns
         self.columns = (
@@ -237,8 +241,8 @@ class FabricProgressLogger:
 class NestedProgressTracker:
     """Simplified progress tracker for common nested loop patterns."""
 
-    def __init__(self, fabric: Fabric, name: str = "progress", **logger_kwargs):
-        self.logger = FabricProgressLogger(fabric, name, **logger_kwargs)
+    def __init__(self, rank: int = 0, name: str = "progress", logger: RichRankedLogger | None = None, **logger_kwargs):
+        self.logger = FabricProgressLogger(rank, name, logger=logger, **logger_kwargs)
         self._context = None
 
     def __enter__(self):
@@ -352,11 +356,27 @@ class TrainingProgress:
 
 
 # Convenience function for quick setup
-def create_fabric_progress_logger(fabric: Fabric, name: str = __name__, **kwargs) -> FabricProgressLogger:
+def create_fabric_progress_logger(rank: int = 0, name: str = __name__, **kwargs) -> FabricProgressLogger:
     """Create a fabric progress logger instance."""
-    return FabricProgressLogger(fabric, name, **kwargs)
+    return FabricProgressLogger(rank, name, **kwargs)
 
 
-def create_nested_progress_tracker(fabric: Fabric, name: str = "progress", **kwargs) -> NestedProgressTracker:
+def create_nested_progress_tracker(rank: int = 0, name: str = "progress", **kwargs) -> NestedProgressTracker:
     """Create a simplified nested progress tracker."""
-    return NestedProgressTracker(fabric, name, **kwargs)
+    return NestedProgressTracker(rank, name, **kwargs)
+
+
+def create_rich_tracker(logger: RichRankedLogger, rank: int = 0, name: str = "progress", **kwargs) -> NestedProgressTracker:
+    """
+    Create a NestedProgressTracker that uses an existing RichRankedLogger.
+
+    Args:
+        logger: RichRankedLogger to share console with
+        rank: Process rank (0 for single GPU, fabric.global_rank for multi-GPU)
+        name: Logger name
+        **kwargs: Additional arguments for tracker
+
+    Returns:
+        NestedProgressTracker that shares the logger's console
+    """
+    return NestedProgressTracker(rank, name, logger=logger, **kwargs)
