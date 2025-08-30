@@ -29,6 +29,7 @@ dependencies = [
     "imageio>=2.36.0",
     "torch-fidelity>=0.3.0",
     "fire>=0.7.0",
+    "datasets>=4.0.0",
 ]
 
 [build-system]

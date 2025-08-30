@@ -6,7 +6,7 @@ defaults:
   - logger: wandb
 
 accelerator: gpu
-task_name: cifar_diffusion
+task_name: cifar_release_1
 run_name: icy-horizon-51
 ckpt_name: last.ckpt
 show: True
