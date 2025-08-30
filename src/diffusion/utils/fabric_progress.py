@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
-from typing import Dict, Optional
 
 from lightning import Fabric
 from rich.progress import (
@@ -22,7 +23,7 @@ class FabricProgressLogger:
         self,
         fabric: Fabric,
         name: str = __name__,
-        show_progress: Optional[bool] = None,
+        show_progress: bool | None = None,
         log_interval: int = 10,
     ):
         """
@@ -49,8 +50,8 @@ class FabricProgressLogger:
             TimeRemainingColumn(),
         )
 
-        self._progress: Optional[Progress] = None
-        self._tasks: Dict[str, TaskID] = {}
+        self._progress: Progress | None = None
+        self._tasks: dict[str, TaskID] = {}
 
     @contextmanager
     def progress_context(self):
@@ -76,7 +77,7 @@ class FabricProgressLogger:
         name: str,
         title: str,
         total: int,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> str:
         """
         Add a progress task.
@@ -105,8 +106,8 @@ class FabricProgressLogger:
         self,
         name: str,
         advance: int = 1,
-        title: Optional[str] = None,
-        log_message: Optional[str] = None,
+        title: str | None = None,
+        log_message: str | None = None,
         force_log: bool = False,
     ) -> None:
         """
@@ -146,7 +147,7 @@ class FabricProgressLogger:
             # Log even without progress bars
             self.log.info(log_message)
 
-    def reset_task(self, name: str, total: int, title: Optional[str] = None) -> None:
+    def reset_task(self, name: str, total: int, title: str | None = None) -> None:
         """Reset a task's progress."""
         if name in self._tasks and self._progress is not None:
             task_id = self._tasks[name]
@@ -155,7 +156,7 @@ class FabricProgressLogger:
                 reset_kwargs["title"] = title
             self._progress.reset(task_id, **reset_kwargs)
 
-    def finish_task(self, name: str, message: Optional[str] = None) -> None:
+    def finish_task(self, name: str, message: str | None = None) -> None:
         """Mark a task as finished."""
         if message:
             self.log.info(f"Finished: {message}")
@@ -167,15 +168,15 @@ class FabricProgressLogger:
                 task_title = task.fields.get("title", name)
                 self.log.info(f"Finished: {task_title}")
 
-    def log_info(self, message: str, rank: Optional[int] = None) -> None:
+    def log_info(self, message: str, rank: int | None = None) -> None:
         """Log an info message."""
         self.log.info(message, rank=rank)
 
-    def log_warning(self, message: str, rank: Optional[int] = None) -> None:
+    def log_warning(self, message: str, rank: int | None = None) -> None:
         """Log a warning message."""
         self.log.warning(message, rank=rank)
 
-    def log_error(self, message: str, rank: Optional[int] = None) -> None:
+    def log_error(self, message: str, rank: int | None = None) -> None:
         """Log an error message."""
         self.log.error(message, rank=rank)
 
@@ -194,11 +195,11 @@ class NestedProgressTracker:
     def __exit__(self, *args):
         return self._context.__exit__(*args)
 
-    def setup_sampling(self, batches: int, timesteps: int) -> "SamplingProgress":
+    def setup_sampling(self, batches: int, timesteps: int) -> SamplingProgress:
         """Setup progress tracking for sampling loops."""
         return SamplingProgress(self.logger, batches, timesteps)
 
-    def setup_training(self, epochs: int, batches_per_epoch: int, timesteps_per_batch: int = None) -> "TrainingProgress":
+    def setup_training(self, epochs: int, batches_per_epoch: int, timesteps_per_batch: int | None = None) -> TrainingProgress:
         """Setup progress tracking for training loops."""
         return TrainingProgress(self.logger, epochs, batches_per_epoch, timesteps_per_batch)
 
@@ -225,7 +226,7 @@ class SamplingProgress:
         if self.current_batch <= self.batches:
             self.logger.reset_task("timesteps", self.timesteps, f"Timesteps (Batch {self.current_batch}/{self.batches})")
 
-    def step(self, log_message: str = None):
+    def step(self, log_message: str | None = None):
         """Advance one timestep."""
         self.logger.update_task("timesteps", advance=1, log_message=log_message)
         self.logger.update_task("overall", advance=1)
@@ -238,7 +239,7 @@ class SamplingProgress:
 class TrainingProgress:
     """Encapsulates training progress tracking."""
 
-    def __init__(self, logger: FabricProgressLogger, epochs: int, batches_per_epoch: int, timesteps_per_batch: int = None):
+    def __init__(self, logger: FabricProgressLogger, epochs: int, batches_per_epoch: int, timesteps_per_batch: int | None = None):
         self.logger = logger
         self.epochs = epochs
         self.batches_per_epoch = batches_per_epoch
@@ -281,7 +282,7 @@ class TrainingProgress:
                 "timesteps", self.timesteps_per_batch, f"Timesteps (Epoch {self.current_epoch}, Batch {self.current_batch})"
             )
 
-    def step(self, log_message: str = None):
+    def step(self, log_message: str | None = None):
         """Advance one step (timestep if configured)."""
         if self.timesteps_per_batch:
             self.logger.update_task("timesteps", advance=1, log_message=log_message)
@@ -306,4 +307,3 @@ def create_fabric_progress_logger(fabric: Fabric, name: str = __name__, **kwargs
 def create_nested_progress_tracker(fabric: Fabric, name: str = "progress", **kwargs) -> NestedProgressTracker:
     """Create a simplified nested progress tracker."""
     return NestedProgressTracker(fabric, name, **kwargs)
-

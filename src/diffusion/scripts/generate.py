@@ -1,14 +1,12 @@
-from pathlib import Path
+import time
 
-import hydra
 import rootutils
 import torch
 from lightning import Fabric
-from omegaconf import DictConfig, OmegaConf
-from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn, TimeRemainingColumn
+from omegaconf import DictConfig
 
 from diffusion.utils.extras import extras
-from diffusion.utils.instantiators import instantiate_loggers
+from diffusion.utils.fabric_progress import create_nested_progress_tracker
 from diffusion.utils.ranked_logger import RankedLogger
 from diffusion.utils.run_utils import custom_main
 
@@ -21,53 +19,75 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 
 def sample(cfg: DictConfig):
-    run_path = Path(cfg.paths.output_dir)
-    module_cfg = OmegaConf.load(run_path / "config.yaml")
-
-    fabric = Fabric(devices=2, accelerator=cfg.accelerator)
+    fabric = Fabric(devices=2, accelerator="auto")
     fabric.launch()
-
-    log.info(f"Instantiating model <{module_cfg.diffusion._target_}>")
-    model = hydra.utils.instantiate(module_cfg.diffusion)
-
-    log.info("Instantiating loggers...")
-    loggers = instantiate_loggers(cfg.get("logger"))
-
-    ckpt_path = run_path / "checkpoints" / cfg.ckpt_name
-    state_dict = torch.load(ckpt_path)["state_dict"]
-    model.load_state_dict(state_dict)
-    module = fabric.setup_module(model)
 
     samples = 64
     batch_size = 4
     batches = samples // batch_size
-    timesteps = cfg.sample_timesteps
+    timesteps = 1000
 
-    columns = (
-        TextColumn("[bold]{task.fields[title]}"),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TextColumn("• {task.percentage:>5.1f}%"),
-        TimeElapsedColumn(),
-        TimeRemainingColumn(),
-    )
+    # for i in range(batches):
+    #     batch = torch.randn(batch_size, 3, 32, 32, device=fabric.device)
+    #
+    #     for step in range(timesteps):
+    #         batch = batch * 0.99
+    #         time.sleep(0.01)  # Reduced for faster demo
 
-    with Progress(*columns) as progress:
-        overall = progress.add_task("", total=batches * timesteps, title="Overall")
-        batch_bar = progress.add_task("", total=batches, title="Batch")
-        step_bar = progress.add_task("", total=timesteps, title="Timesteps (Batch 1)")
+    def a():
+        tracker = create_nested_progress_tracker(fabric, name="sampling", log_interval=10)
 
-        for i in range(batches):
-            progress.update(batch_bar, advance=1)
-            progress.reset(step_bar, total=timesteps)
-            progress.update(step_bar, title=f"Timesteps (Batch {i + 1}/{batches})")
+        with tracker:
+            progress = tracker.setup_sampling(batches, timesteps)
 
-            batch = torch.randn(batch_size, module_cfg.in_channels, module_cfg.dim, module_cfg.dim, device=fabric.device)
+            for i in range(batches):
+                progress.next_batch()
+                batch = torch.randn(batch_size, 3, 32, 32, device=fabric.device)
 
-            for x_t in module.sample(batch, cfg.sample_timesteps):
-                progress.update(step_bar, advance=1)
-                progress.advance(overall)
-            x = ((x_t + 1) * 127.5).clamp(0, 255).to(device=fabric.device, dtype=torch.uint8)
+                for step in range(timesteps):
+                    batch = batch * 0.99
+                    time.sleep(0.01)  # Reduced for faster demo
+                    progress.step()
+            progress.finish()
+
+    a()
+
+    # run_path = Path(cfg.paths.output_dir)
+    # module_cfg = OmegaConf.load(run_path / "config.yaml")
+    #
+    # fabric = Fabric(devices=2, accelerator=cfg.accelerator)
+    # fabric.launch()
+    #
+    # log.info(f"Instantiating model <{module_cfg.diffusion._target_}>")
+    # model = hydra.utils.instantiate(module_cfg.diffusion)
+    #
+    # log.info("Instantiating loggers...")
+    # loggers = instantiate_loggers(cfg.get("logger"))
+    #
+    # ckpt_path = run_path / "checkpoints" / cfg.ckpt_name
+    # state_dict = torch.load(ckpt_path)["state_dict"]
+    # model.load_state_dict(state_dict)
+    # module = fabric.setup_module(model)
+    #
+    # samples = 64
+    # batch_size = 4
+    # batches = samples // batch_size
+    # timesteps = cfg.sample_timesteps
+    #
+    # tracker = create_nested_progress_tracker(fabric, name="sampling", log_interval=10)
+    #
+    # with tracker:
+    #     progress = tracker.setup_sampling(batches, timesteps)
+    #
+    #     for i in range(batches):
+    #         progress.next_batch()
+    #         batch = torch.randn(batch_size, module_cfg.in_channels, module_cfg.dim, module_cfg.dim, device=fabric.device)
+    #
+    #         for x_t in module.sample(batch, cfg.sample_timesteps):
+    #             progress.step()
+    #         x = ((x_t + 1) * 127.5).clamp(0, 255).to(device=fabric.device, dtype=torch.uint8)
+    #
+    #     progress.finish("Sample generation completed!")
 
     # sample_path = run_path / "samples"
     # sample_path.mkdir(exist_ok=True)
