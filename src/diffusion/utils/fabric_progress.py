@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 
+from lightning_utilities.core.rank_zero import rank_zero_only
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import (
@@ -24,41 +25,29 @@ class RichRankedLogger:
         self.rank_zero_only = rank_zero_only
         self.console = console or Console()
 
-        # Set up Rich logging handler that shares the console with progress bars
         self.logger = logging.getLogger(name)
-
-        # Clear any existing handlers to avoid conflicts
         self.logger.handlers.clear()
 
-        # Add Rich handler that uses the same console as progress bars
         rich_handler = RichHandler(console=self.console, show_path=False, show_time=True, rich_tracebacks=True, markup=True)
         rich_handler.setFormatter(logging.Formatter("%(message)s"))
         self.logger.addHandler(rich_handler)
         self.logger.setLevel(logging.INFO)
 
-        # Prevent propagation to root logger
         self.logger.propagate = False
 
     def info(self, message: str, rank: int | None = None):
-        """Log info message."""
-        if self.rank_zero_only:
-            # For rank zero only logging (similar to original RankedLogger)
-            self.logger.info(f"[bold blue][INFO][/bold blue] {message}")
-        else:
+        current_rank = getattr(rank_zero_only, "rank", 0)
+        if not self.rank_zero_only or current_rank == 0:
             self.logger.info(f"[bold blue][INFO][/bold blue] {message}")
 
     def warning(self, message: str, rank: int | None = None):
-        """Log warning message."""
-        if self.rank_zero_only:
-            self.logger.warning(f"[bold yellow][WARNING][/bold yellow] {message}")
-        else:
+        current_rank = getattr(rank_zero_only, "rank", 0)
+        if not self.rank_zero_only or current_rank == 0:
             self.logger.warning(f"[bold yellow][WARNING][/bold yellow] {message}")
 
     def error(self, message: str, rank: int | None = None):
-        """Log error message."""
-        if self.rank_zero_only:
-            self.logger.error(f"[bold red][ERROR][/bold red] {message}")
-        else:
+        current_rank = getattr(rank_zero_only, "rank", 0)
+        if not self.rank_zero_only or current_rank == 0:
             self.logger.error(f"[bold red][ERROR][/bold red] {message}")
 
 
@@ -262,15 +251,12 @@ class NestedProgressTracker:
 
 
 class SamplingProgress:
-    """Encapsulates sampling progress tracking."""
-
     def __init__(self, logger: FabricProgressLogger, batches: int, timesteps: int):
         self.logger = logger
         self.batches = batches
         self.timesteps = timesteps
         self.current_batch = 0
 
-        # Setup tasks
         self.logger.add_task("overall", "Overall Sampling", batches * timesteps, "Generating samples")
         self.logger.add_task("batches", "Batches", batches)
         self.logger.add_task("timesteps", f"Timesteps (Batch 1/{batches})", timesteps)

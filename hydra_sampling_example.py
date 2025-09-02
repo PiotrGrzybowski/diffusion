@@ -1,6 +1,3 @@
-"""Minimalistic sampling example with Hydra integration and progress tracking only."""
-
-import time
 from pathlib import Path
 
 import hydra
@@ -8,64 +5,95 @@ import rootutils
 import torch
 from lightning import Fabric
 from omegaconf import DictConfig, OmegaConf
+from torchvision import transforms
 
+from diffusion.utils.extras import extras
 from diffusion.utils.fabric_progress import RichRankedLogger, create_rich_tracker
+from diffusion.utils.run_utils import custom_main
 
 
 root_path = rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=False)
+configs_path = root_path / "configs"
+
+logger = RichRankedLogger("sampling", rank_zero_only=True)
 
 
 def run_sampling(cfg: DictConfig):
-    fabric = Fabric(devices=1, accelerator="cpu")
+    fabric = Fabric(devices=2, accelerator="gpu")
     fabric.launch()
-    samples = getattr(cfg, "samples", 64)
-    batch_size = 4
-    batches = samples // batch_size
-    timesteps = getattr(cfg, "sample_timesteps", 100)
-
-    # Create logger and tracker separately - cleaner separation of concerns
-    logger = RichRankedLogger("sampling", rank_zero_only=True)
-    tracker = create_rich_tracker(logger, fabric.global_rank, name="sampling", log_interval=10)
 
     run_path = Path(cfg.paths.output_dir)
-    module_cfg = OmegaConf.load(run_path / "config.yaml")
+    config = OmegaConf.load(run_path / "config.yaml")
 
-    logger.info(f"Instantiating model <{module_cfg.diffusion._target_}>")
-    model = hydra.utils.instantiate(module_cfg.diffusion)
+    logger.info(f"Instantiating model <{config.diffusion._target_}>")
+    model = hydra.utils.instantiate(config.diffusion)
+
+    ckpt_path = run_path / "checkpoints" / cfg.ckpt_name
+    logger.info(f"Loading checkpoint {ckpt_path}")
+    state_dict = torch.load(ckpt_path)["state_dict"]
+    model.load_state_dict(state_dict)
+    model.eval()
+    model = fabric.setup_module(model)
+
+    fid_path = Path(cfg.paths.log_dir) / cfg.task_name / "fid.pt"
+    logger.info(f"Loading FID from {fid_path}")
+    fid_metric = torch.load(fid_path, map_location=fabric.device)
+
+    resize = transforms.Resize((299, 299), antialias=True)
+
+    batches = cfg.samples // cfg.batch_size
+    tracker = create_rich_tracker(logger, fabric.global_rank, name="sampling", log_interval=10)
 
     with tracker:
-        progress = tracker.setup_sampling(batches, timesteps)
-
-        # Now we can use logger directly - much cleaner!
-        logger.info("🚀 Starting sampling with Rich logging + progress bars")
+        progress = tracker.setup_sampling(batches, cfg.sample_timesteps)
+        samples = []
 
         for batch_idx in range(batches):
-            # Direct logger access - no more nested calls!
-            logger.info(f"📦 Processing batch {batch_idx + 1}/{batches}")
             progress.next_batch()
-            batch = torch.randn(batch_size, 3, 32, 32, device=fabric.device)
+            batch = torch.randn(cfg.batch_size, config.in_channels, config.dim, config.dim, device=fabric.device)
 
-            for step in range(timesteps):
-                noise_scale = (timesteps - step) / timesteps
-                batch = batch * noise_scale
-
-                # Add some logging during progress
-                if step % 20 == 0:
-                    logger.info(f"⏰ Denoising step {step + 1}/{timesteps} in batch {batch_idx + 1}")
-
-                if step % 50 == 0:
-                    logger.warning(f"🔄 Halfway through batch {batch_idx + 1}")
-
-                time.sleep(0.05)  # Slightly faster for testing
-
+            x_t = torch.empty(0)
+            for x_t in model.sample(batch, cfg.sample_timesteps):
                 progress.step()
 
-        progress.finish("✅ Sampling completed successfully!")
-        logger.info("🎉 All done! Rich logging + progress bars working together!")
+            x_t = resize(x_t)
+
+            fid_metric.update(x_t, real=False)
+
+            current_fid = fid_metric.compute()
+            progress.update_metrics(FID=float(current_fid), Batch=f"{batch_idx + 1}/{batches}")
+
+            samples.append(x_t)
+
+        # Final FID computation
+        final_fid = fid_metric.compute()
+        fabric.barrier()
+        progress.finish(f"✅ Sampling completed! Final FID: {final_fid:.4f}")
+        logger.info(f"🎯 Final FID Score: {final_fid:.4f}")
+
+    # rank_samples = torch.cat(samples, dim=0)
+    #
+    # fabric.barrier()
+    # logger.info(f"🔄 Rank {fabric.global_rank} completed, waiting for other ranks...")
+    #
+    # if fabric.world_size > 1:
+    #     gathered_samples = fabric.all_gather(rank_samples)
+    #     assert isinstance(gathered_samples, torch.Tensor)
+    #
+    #     if fabric.global_rank == 0:
+    #         all_gathered = gathered_samples.view(-1, *gathered_samples.shape[2:])
+    #         torch.save(all_gathered, run_path / "dd-samples_all_ranks.pt")
+    #         logger.info(f"💾 Saved {all_gathered.shape[0]} samples from all ranks to samples_all_ranks.pt")
+    # else:
+    #     torch.save(rank_samples, run_path / "dd-samples_all_ranks.pt")
+    #
+    # torch.save(rank_samples, run_path / f"dd-samples_rank_{fabric.global_rank}.pt")
+    # fabric.barrier()
 
 
-@hydra.main(version_base=None, config_path="configs", config_name="sample")
+@custom_main(version_base="1.3", config_path=str(configs_path), config_name="sample.yaml")
 def main(cfg: DictConfig) -> None:
+    extras(cfg)
     run_sampling(cfg)
 
 
