@@ -137,10 +137,10 @@ class FabricProgressLogger:
         Returns:
             Task name for future updates
         """
-        if description:
-            self.log.info(f"Starting {description}: {title}")
-        else:
-            self.log.info(f"Starting: {title}")
+        # if description:
+        #     self.log.info(f"Starting {description}: {title}")
+        # else:
+        #     self.log.info(f"Starting: {title}")
 
         if self._progress is not None:
             task_id = self._progress.add_task("", total=total, title=title)
@@ -260,6 +260,7 @@ class SamplingProgress:
         self.logger.add_task("overall", "Overall Sampling", batches * timesteps, "Generating samples")
         self.logger.add_task("batches", "Batches", batches)
         self.logger.add_task("timesteps", f"Timesteps (Batch 1/{batches})", timesteps)
+        self.logger.add_task("metrics", "FID: --", 1)
 
     def next_batch(self):
         """Move to next batch."""
@@ -273,6 +274,13 @@ class SamplingProgress:
         """Advance one timestep."""
         self.logger.update_task("timesteps", advance=1, log_message=log_message)
         self.logger.update_task("overall", advance=1)
+
+    def update_metrics(self, **metrics):
+        """Update metrics display."""
+        metric_str = " | ".join(
+            [f"{k}: {v:.4f}" if isinstance(v, (float, int)) and not isinstance(v, str) else f"{k}: {v}" for k, v in metrics.items()]
+        )
+        self.logger.update_task("metrics", advance=0, title=metric_str)
 
     def finish(self, message: str = "Sampling completed!"):
         """Finish sampling."""
