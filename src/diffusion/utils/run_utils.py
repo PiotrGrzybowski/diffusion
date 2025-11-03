@@ -43,12 +43,43 @@ def custom_main(
     return hydra.main(config_path=config_path, config_name=new_config_name, version_base=version_base)
 
 
-ADJECTIVES = ["snowy", "rapid", "gentle", "mighty", "icy", "clever"]
-NOUNS = ["rocket", "comet", "falcon", "glacier", "horizon", "whale"]
+ADJECTIVES = [
+    "snowy",
+    "rapid",
+    "gentle",
+    "mighty",
+    "icy",
+    "clever",
+    "brave",
+    "fierce",
+    "silent",
+    "bold",
+    "swift",
+    "noble",
+    "radiant",
+    "vivid",
+    "luminous",
+]
+NOUNS = [
+    "rocket",
+    "comet",
+    "falcon",
+    "glacier",
+    "horizon",
+    "whale",
+    "tiger",
+    "eagle",
+    "phoenix",
+    "dragon",
+    "panther",
+    "wolf",
+    "leopard",
+    "jaguar",
+    "lynx",
+]
 
 
 def generate_run_name():
-    """Generates a custom log folder name."""
     adjective = random.choice(ADJECTIVES)
     noun = random.choice(NOUNS)
     number = random.randint(0, 99)
