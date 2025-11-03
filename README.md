@@ -15,17 +15,15 @@ This repository bridges the gap between mathematical theory and practical implem
 - **Production-Ready**: Experiment tracking, checkpointing, and distributed training out-of-the-box
 
 ### Papers Implemented
+
 - **[DDPM]** Denoising Diffusion Probabilistic Models (Ho et al., 2020)
 - **[Improved Diffusion]** Improved Denoising Diffusion Probabilistic Models (Nichol & Dhariwal, 2021)
 
 ## Installation
 
 ```bash
-# Clone the repository
-git clone <repository-url>
+git clone https://github.com/PiotrGrzybowski/diffusion.git
 cd diffusion
-
-# Install with uv (recommended)
 uv sync
 ```
 
@@ -33,29 +31,25 @@ uv sync
 
 ### Training Your First Model
 
-Here's a complete example that trains a diffusion model on CIFAR-10 with the hybrid loss (Simple MSE + VLB):
+Here's a complete example that trains a diffusion model on MNIST with the `epsilon` mean parametrization, `fixed_small` variance with `simple MSE` loss. It is enough to run if for `10` epochs to see initial results. Approximatelly 20 minutes on a single GPU.
 
 ```bash
-uv run python src/diffusion/scripts/train.py \
-    train=True \
-    validate=True \
-    trainer=ddp \
-    trainer.max_epochs=70 \
-    diffusion/model=unet \
-    diffusion/mean_strategy=epsilon \
-    diffusion/variance_strategy=trainable_range \
-    diffusion/loss=hybrid \
-    logger=tensorboard \
-    callbacks.image_generation.every_n_epochs=5 \
-    data=cifar10 \
-    dim=32 \
-    in_channels=3 \
-    out_channels=6 \
-    predict_samples=16 \
-    batch_size=32 \
-    run_name="epsilon-trainable_range-hybrid"
+./scripts/mnist-epsilon-fixed_small-mse_simple.sh
 ```
 
+### Sampling from the Trained Model
+After training you should observe the checkpoints and logs in the `logs/` directory. You can sample from the trained model using the `ls` command. The `sample.py` script will automatically locate the entire configuration and checkpoint based on the `task_name` and `run_name` used during training. In our case `mnist` and `epsilon-fixed_small-mse_simple`.
+```bash
+uv run python src/diffusion/scripts/sample.py \
+    task_name="mnist" \
+    run_name="epsilon-fixed_small-mse_simple" \
+    samples=16 \
+    show=True
+```
+Progressive denoising steps will be displayed in a pop-up window. Final images will be saved in the `logs/mnist/epsilon-fixed_small-mse_simple/samples/` directory.
+
+
+```bash
 **What's happening here?**
 
 | Parameter | Value | Description |
