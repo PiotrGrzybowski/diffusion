@@ -25,7 +25,6 @@ batch_size: 128
 
 task_name: "cifar_release_1"
 project: "diffusion"
-group: "mnist"
 run_name: null
 
 tags: ["dev"]

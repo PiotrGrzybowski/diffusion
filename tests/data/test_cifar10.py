@@ -4,7 +4,7 @@ import pytest
 import torch
 from rootutils import find_root
 
-from diffusion.data.mnist_datamodule import MNISTDataModule
+from diffusion.data.cifar_datamodule import CIFAR10DataModule
 
 
 @pytest.fixture(scope="package")
@@ -17,20 +17,18 @@ def diffusion_configs_path() -> Path:
     return find_root("pyproject.toml") / "configs" / "diffusion"
 
 
-@pytest.mark.parametrize("dataset_name", ["mnist", "fashion"])
-def test_mnist_data_download(data_path: Path, dataset_name: str) -> None:
-    """Tests if MNIST data is downloaded and the correct directory structure is created."""
-    datamodule = MNISTDataModule(path=data_path, dataset_name=dataset_name, batch_size=32)
+def test_cifar10_data_download(data_path: Path) -> None:
+    """Tests if CIFAR10 data is downloaded and the correct directory structure is created."""
+    datamodule = CIFAR10DataModule(path=data_path, batch_size=32)
     datamodule.prepare_data()
 
-    assert Path(data_path, datamodule.dataset_class.__name__).exists()
-    assert Path(data_path, datamodule.dataset_class.__name__, "raw").exists()
+    assert Path(data_path, "cifar-10-python.tar.gz").exists()
 
 
 @pytest.mark.parametrize("batch_size", [32, 128, 256])
-def test_mnist_data_splits(data_path: Path, batch_size: int) -> None:
+def test_cifar10_data_splits(data_path: Path, batch_size: int) -> None:
     """Tests if data splits (train, val, test) are created after calling setup()."""
-    datamodule = MNISTDataModule(path=data_path, batch_size=batch_size)
+    datamodule = CIFAR10DataModule(path=data_path, batch_size=batch_size)
     datamodule.setup()
 
     assert datamodule.data_train is not None
@@ -39,9 +37,9 @@ def test_mnist_data_splits(data_path: Path, batch_size: int) -> None:
 
 
 @pytest.mark.parametrize("batch_size", [32, 128, 256])
-def test_mnist_dataloaders_creation(data_path: Path, batch_size: int) -> None:
+def test_cifar10_dataloaders_creation(data_path: Path, batch_size: int) -> None:
     """Tests if dataloaders for train, validation, and test sets are correctly created."""
-    datamodule = MNISTDataModule(path=data_path, batch_size=batch_size)
+    datamodule = CIFAR10DataModule(path=data_path, batch_size=batch_size)
     datamodule.setup()
 
     assert datamodule.train_dataloader() is not None
@@ -49,9 +47,9 @@ def test_mnist_dataloaders_creation(data_path: Path, batch_size: int) -> None:
 
 
 @pytest.mark.parametrize("batch_size", [32, 128, 256])
-def test_mnist_dataloader_batch(data_path: Path, batch_size: int) -> None:
+def test_cifar10_dataloader_batch(data_path: Path, batch_size: int) -> None:
     """Tests if the batch size, data type, and shapes of a batch are correct."""
-    datamodule = MNISTDataModule(path=data_path, batch_size=batch_size)
+    datamodule = CIFAR10DataModule(path=data_path, batch_size=batch_size)
     datamodule.setup()
 
     batch = next(iter(datamodule.train_dataloader()))
@@ -63,8 +61,8 @@ def test_mnist_dataloader_batch(data_path: Path, batch_size: int) -> None:
 
 
 @pytest.mark.parametrize("batch_size", [32, 64, 128])
-def test_mnist_filtered(data_path: Path, batch_size: int) -> None:
-    datamodule = MNISTDataModule(
+def test_cifar10_filtered(data_path: Path, batch_size: int) -> None:
+    datamodule = CIFAR10DataModule(
         path=data_path, batch_size=batch_size, labels=[0, 1], train_samples_per_label=1280, val_samples_per_label=320
     )
     datamodule.setup()

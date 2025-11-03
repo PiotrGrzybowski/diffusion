@@ -5,7 +5,6 @@ from tempfile import gettempdir
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
-from torchvision.datasets import CIFAR10
 from torchvision.transforms import transforms
 
 from diffusion.data.dataset_map import DatasetMap
@@ -15,60 +14,59 @@ from diffusion.data.filtered_mnist import FilteredDataset
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
-class GaussianDataset(Dataset):
-    def __init__(self, shape: tuple[int, ...]) -> None:
-        self.shape = shape
-        self.data = torch.randn(shape)
-
-    def __len__(self) -> int:
-        return self.shape[0]
-
-    def __getitem__(self, idx: int) -> torch.Tensor:
-        return self.data[idx]
-
-
 class CIFAR10DataModule(LightningDataModule):
     def __init__(
         self,
         dataset_name: str = "cifar10",
         path: Path = Path(gettempdir()),
-        val_split: float = 0.95,
+        val_split: float = 0.1,
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
-        predict_samples: int = 16,
+        predict_samples: int = 4,
+        labels: list[int] | None = None,
+        train_samples_per_label: int | None = None,
+        val_samples_per_label: int | None = None,
     ) -> None:
         super().__init__()
 
         self.path = path
         self.batch_size = batch_size
         self.dataset_class = DatasetMap.get_dataset_class(dataset_name.lower())
-        self.predict_samples = predict_samples
         self.val_split = val_split
         self.num_workers = num_workers
         self.pin_memory = pin_memory
 
-        self.transforms = transforms.Compose(
-            [transforms.ToTensor(), transforms.RandomHorizontalFlip(), transforms.Normalize([0.5], [0.5])]
-        )  # [0,1] to [-1,1]
+        self.transforms = transforms.Compose([transforms.ToTensor(), transforms.RandomHorizontalFlip(), transforms.Normalize([0.5], [0.5])])
+
+        self.labels = labels
+        self.train_samples_per_label = train_samples_per_label
+        self.val_samples_per_label = val_samples_per_label
+        self.predict_samples = predict_samples
 
         self.data_train: Dataset | None = None
         self.data_val: Dataset | None = None
-        self.data_test: Dataset | None = None
+        self.data_val: Dataset | None = None
         self.data_predict: Dataset | None = None
 
         self.batch_size_per_device = batch_size
 
     def prepare_data(self) -> None:
-        CIFAR10(str(self.path), train=True, download=True)
-        CIFAR10(str(self.path), train=False, download=True)
+        self.dataset_class(str(self.path), train=True, download=True)
+        self.dataset_class(str(self.path), train=False, download=True)
 
     def setup(self, stage: str | None = None) -> None:
         self._check_batch_size_compatibility()
         if not self._is_setup():
-            train_dataset = FilteredDataset(self.dataset_class(self.path, train=True, transform=self.transforms), None, None)
-            val_dataset = FilteredDataset(self.dataset_class(self.path, train=False, transform=self.transforms), None, None)
-            sample_dataset = FilteredDataset(self.dataset_class(self.path, train=False, transform=self.transforms), None, 8)
+            train_dataset = FilteredDataset(
+                self.dataset_class(self.path, train=True, transform=self.transforms), self.labels, self.train_samples_per_label
+            )
+            val_dataset = FilteredDataset(
+                self.dataset_class(self.path, train=False, transform=self.transforms), self.labels, self.val_samples_per_label
+            )
+            sample_dataset = FilteredDataset(
+                self.dataset_class(self.path, train=False, transform=self.transforms), None, self.predict_samples
+            )
 
             self.data_train = train_dataset
             self.data_val = val_dataset
@@ -106,18 +104,6 @@ class CIFAR10DataModule(LightningDataModule):
         else:
             raise RuntimeError("The validation dataset is not loaded.")
 
-    def predict_dataloader(self) -> DataLoader[torch.Tensor]:
-        if self.data_predict:
-            return DataLoader(
-                dataset=self.data_predict,
-                batch_size=self.predict_size,
-                num_workers=self.num_workers,
-                pin_memory=self.pin_memory,
-                shuffle=False,
-            )
-        else:
-            raise RuntimeError("The prediction dataset is not loaded.")
-
     def _check_batch_size_compatibility(self) -> None:
         if self.trainer is not None:
             if self.batch_size % self.trainer.world_size != 0:
@@ -125,27 +111,3 @@ class CIFAR10DataModule(LightningDataModule):
 
     def _is_setup(self) -> bool:
         return self.data_train is not None and self.data_val is not None and self.data_test is not None
-
-    def _train_val_lengths(self, dataset: CIFAR10, split: float) -> tuple[int, int]:
-        length = len(dataset)
-        train_length = int(length * split)
-        val_length = length - train_length
-        return train_length, val_length
-
-    def _load(self) -> tuple[CIFAR10, CIFAR10]:
-        train_set = CIFAR10(str(self.path), train=True, transform=self.transforms)
-        test_set = CIFAR10(str(self.path), train=False, transform=self.transforms)
-        return train_set, test_set
-
-
-if __name__ == "__main__":
-    mnist = CIFAR10DataModule()
-    mnist.prepare_data()
-    mnist.setup()
-
-    train_loader = mnist.train_dataloader()
-    val_loader = mnist.val_dataloader()
-
-    print(len(train_loader.dataset), len(val_loader.dataset))
-    print(train_loader.dataset[0][0].shape)
-    print(val_loader.dataset[0][0].shape)

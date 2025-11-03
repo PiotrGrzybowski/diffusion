@@ -4,4 +4,4 @@ image_generation:
   in_channels: ${in_channels}
   dim: ${dim}
   samples: 16
-  every_n_epochs: 2
+  every_n_epochs: 5
