@@ -3,16 +3,16 @@ from pathlib import Path
 import torch
 from lightning import Callback, LightningModule, Trainer
 from lightning.fabric.utilities.rank_zero import rank_zero_only
-from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 from PIL import Image
 from rich.console import Console
 from torchvision.utils import make_grid, math
 
 
 class ImageGenerationCallback(Callback):
-    def __init__(self, samples: int, in_channels: int, dim: int, output_dir: Path | str, every_n_epochs: int = 1) -> None:
+    def __init__(self, samples: int, output_dir: Path | str, every_n_epochs: int = 1) -> None:
         super().__init__()
-        self.shape = (samples, in_channels, dim, dim)
+        self.shape = (samples, 0, 0, 0)
         self.output_dir = Path(output_dir)
         self.every_n_epochs = every_n_epochs
 
@@ -41,3 +41,23 @@ class ImageGenerationCallback(Callback):
                 for logger in trainer.loggers:
                     if isinstance(logger, WandbLogger):
                         logger.log_image("samples", [image], trainer.current_epoch)
+                    if isinstance(logger, TensorBoardLogger):
+                        logger.experiment.add_image(
+                            "samples",
+                            torch.tensor(result).permute(2, 0, 1),
+                            global_step=trainer.current_epoch,
+                        )
+
+    @rank_zero_only
+    def on_validation_batch_start(
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
+        batch: tuple[torch.Tensor, torch.Tensor] | torch.Tensor,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        x, _ = batch
+        self.shape = (self.shape[0], x.shape[1], x.shape[2], x.shape[3])
+        if dataloader_idx == 1:
+            print("Generating sample images...")

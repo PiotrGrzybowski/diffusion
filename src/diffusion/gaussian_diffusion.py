@@ -1,66 +1,51 @@
 import numpy as np
 import torch
-import torch.nn as nn
 from lightning import LightningModule
 from rich.console import Console
 from torchmetrics import MeanSquaredError
 
 from diffusion.diffusion_factors import Factors
 from diffusion.diffusion_terms import DiffusionTerms
+from diffusion.image_samplers import ImageSampler, SampleInputs
 from diffusion.losses import DiffusionLoss, LossInputs
 from diffusion.means import MeanInputs, MeanStrategy
 from diffusion.metrics import ScalarAverage, VarianceKL, vlb
-from diffusion.samplers import SampleInputs, Sampler
 from diffusion.schedulers import Scheduler
+from diffusion.timestep_samplers import TimestepSampler
 from diffusion.variances import VarianceInputs, VarianceStrategy
-
-
-class TimestepSampler:
-    def __init__(self, timesteps: int) -> None:
-        super().__init__()
-        self.timesteps = timesteps
-
-    def sample_like(self, x: torch.Tensor, device) -> torch.Tensor:
-        return torch.randint(0, self.timesteps, (x.size(0),)).to(device=device, dtype=torch.long)
-
-    def full_like(self, x: torch.Tensor, timestep: int, device) -> torch.Tensor:
-        return torch.full((x.size(0),), timestep, device=device, dtype=torch.long)
 
 
 class GaussianDiffusion(LightningModule):
     def __init__(
         self,
-        timesteps: int,
-        sample_timesteps: int,
-        scheduler: Scheduler,
+        model: torch.nn.Module,
         mean_strategy: MeanStrategy,
         variance_strategy: VarianceStrategy,
         loss: DiffusionLoss,
-        model: nn.Module,
-        sampler: Sampler,
-        in_channels: int = 1,
+        scheduler: Scheduler,
+        image_sampler: ImageSampler,
+        timestep_sampler: TimestepSampler,
+        timesteps: int,
+        sample_timesteps: int,
     ) -> None:
         super().__init__()
         self.model = model
+        self.mean_strategy = mean_strategy
+        self.variance_strategy = variance_strategy
+        self.loss = loss
         self.scheduler = scheduler
-        self.factors = Factors(scheduler.schedule())
+        self.image_sampler = image_sampler
+        self.timestep_sampler = timestep_sampler
+
+        self.factors = Factors(self.scheduler.schedule())
 
         self.timesteps = timesteps
         self.sample_timesteps = sample_timesteps
-        self.in_channels = in_channels
 
-        self.mean_strategy = mean_strategy
-        self.variance_strategy = variance_strategy
-
-        self.loss = loss
-        self.sampler = sampler
-
-        self.timestep_sampler = TimestepSampler(timesteps)
         self.train_mean_mse = MeanSquaredError()
         self.val_mean_mse = MeanSquaredError()
         self.train_variance_kl = VarianceKL()
         self.val_variance_kl = VarianceKL()
-
         self.nll_metric = ScalarAverage()
 
         self.register_components()
@@ -185,14 +170,15 @@ class GaussianDiffusion(LightningModule):
                 nll += vlb(target_terms, predicted_terms, timesteps)
                 console.print(f"Val sampling: {self.sample_timesteps - timestep}/{self.sample_timesteps}, nll={nll}", end="\r")
             self.nll_metric.update(nll)
-            self.log("nll", self.nll_metric, on_epoch=True, prog_bar=True, add_dataloader_idx=False)
+            self.log("nll", self.nll_metric, on_epoch=True, prog_bar=True, add_dataloader_idx=False, sync_dist=True)
 
     def on_after_backward(self) -> None:
         norm = 0.0
         for p in self.model.parameters():
+            assert p.grad is not None
             norm += p.grad.data.norm(2).item() ** 2
         norm = norm**0.5
-        self.log("gradient_norm", norm, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("gradient_norm", norm, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
 
     @torch.inference_mode()
     def sample(self, batch: torch.Tensor, timesteps: int):
@@ -209,7 +195,7 @@ class GaussianDiffusion(LightningModule):
             inputs = SampleInputs(
                 predicted_terms.mean, predicted_terms.variance, predicted_x_start, predicted_terms.epsilon, self.factors, timestep
             )
-            x_t = self.sampler.sample(inputs)
+            x_t = self.image_sampler.sample(inputs)
             x_prev = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
             yield x_prev
         self.factors = original_factors
@@ -224,15 +210,14 @@ class GaussianDiffusion(LightningModule):
             "variance": self.variance_strategy.__class__.__name__,
             "loss": self.loss.__class__.__name__,
             "scheduler": self.scheduler.__class__.__name__,
-            "model": self.model.__class__.__name__,
         }
         self.save_hyperparameters(components)
 
     def mean_prediction(self, model_output: torch.Tensor) -> torch.Tensor:
-        return model_output[:, : self.in_channels].contiguous()
+        return model_output[:, : self.model.in_channels].contiguous()
 
     def variance_prediction(self, model_output: torch.Tensor) -> torch.Tensor:
-        return model_output[:, self.in_channels :]
+        return model_output[:, self.model.in_channels :]
 
     def build_sample_factors(self, steps: int) -> Factors:
         indexes = np.linspace(0, self.timesteps - 1, steps, dtype=int).tolist()[::-1]

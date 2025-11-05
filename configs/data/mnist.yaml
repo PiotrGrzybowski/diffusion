@@ -4,3 +4,4 @@ path: /tmp/data
 batch_size: ${batch_size}
 num_workers: 0
 predict_samples: ${predict_samples}
+val_samples_per_label: 10

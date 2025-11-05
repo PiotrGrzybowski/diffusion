@@ -16,6 +16,11 @@ def diffusion() -> GaussianDiffusion:
     mock = Mock()
     mock.factors = factors
 
+    model = Mock()
+    model.in_channels = 1
+
+    mock.model = model
+
     return mock
 
 
@@ -97,7 +102,6 @@ def test_prediction_split_fixed_variance(diffusion: GaussianDiffusion):
     diffusion.mean_prediction = GaussianDiffusion.mean_prediction.__get__(diffusion)
     diffusion.variance_prediction = GaussianDiffusion.variance_prediction.__get__(diffusion)
 
-    diffusion.in_channels = 1
     prediction = torch.rand(3, 1, 28, 28)
 
     mean_prediction = diffusion.mean_prediction(prediction)
@@ -111,7 +115,6 @@ def test_prediction_split_trainable_variance(diffusion: GaussianDiffusion):
     diffusion.mean_prediction = GaussianDiffusion.mean_prediction.__get__(diffusion)
     diffusion.variance_prediction = GaussianDiffusion.variance_prediction.__get__(diffusion)
 
-    diffusion.in_channels = 1
     prediction = torch.rand(3, 2, 28, 28)
 
     mean_prediction = diffusion.mean_prediction(prediction)

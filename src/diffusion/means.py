@@ -149,6 +149,4 @@ class EpsilonMean(MeanStrategy):
 
         mean = mean_from_xstart(x_start, x_t, factors, timesteps)
 
-        # mean = mean_from_epsilon(x_t, epsilon, factors, timesteps)
-
         return MeanOutputs(mean, x_start, epsilon)

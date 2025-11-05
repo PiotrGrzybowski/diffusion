@@ -6,10 +6,12 @@ defaults:
   - logger: wandb
 
 accelerator: gpu
-task_name: cifar_release_1
-run_name: icy-horizon-51
-ckpt_name: last.ckpt
+
 show: True
-samples: 1280
-batch_size: 128
+samples: 16
+batch_size: 16
 sample_timesteps: 1000
+
+task_name: null
+run_name: null
+ckpt_name: last.ckpt

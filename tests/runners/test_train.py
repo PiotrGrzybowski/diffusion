@@ -1,3 +1,4 @@
+from itertools import product
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -31,30 +32,40 @@ def cfg_train(configs_dir: Path) -> DictConfig:
 
 
 losses = ["mean_mse", "noise_mse", "mean_simple_mse", "noise_simple_mse", "variational_bound"]
+means = ["epsilon", "xstart", "direct"]
 models = ["small_unet"]
 
 
-# @pytest.mark.parametrize("loss, model", product(losses, models))
-def test_train_fast_dev_run(cfg_train: DictConfig):
-    # with initialize_config_dir(config_dir=config_dir, version_base="1.3"):
-    # diffusion = compose(config_name=f"model/{model}")
-    # loss_config = compose(config_name=f"loss/{loss}")
-    # with open_dict(cfg_train):
-    #     cfg_train.model = diffusion.model
-    #     cfg_train.loss = loss_config.loss
+import logging
 
-    HydraConfig().set_config(cfg_train)
+import pytest
+
+
+losses = ["vlb", "mse_mean_epsilon_simple"]
+models = ["unet", "small_unet"]
+
+
+@pytest.mark.parametrize("mean, loss", product(means, losses))
+def testo_train_fast_dev_run(configs_dir: Path, mean: str, loss: str):
+    logging.disable(logging.CRITICAL)
     with TemporaryDirectory() as output_dir:
-        with open_dict(cfg_train):
-            cfg_train.trainer.fast_dev_run = True
-            cfg_train.trainer.accelerator = "cpu"
-            cfg_train.logger = None
-            cfg_train.callbacks = None
-            cfg_train.train = True
-            cfg_train.validate = False
-            cfg_train.paths.output_dir = output_dir
-            cfg_train.run_name = "test"
-            cfg_train.task_name = "test"
-            cfg_train.trainer.check_val_every_n_epoch = 10
-            cfg_train.sample_timesteps = 2
-            train(cfg_train)
+        with initialize_config_dir(version_base="1.3", config_dir=str(configs_dir)):
+            overrides = [
+                "diffusion/model=small_unet",
+                f"diffusion/mean_strategy={mean}",
+            ]
+            cfg = compose(config_name="train.yaml", overrides=overrides, return_hydra_config=True)
+
+        with open_dict(cfg):
+            cfg.paths.output_dir = output_dir
+            cfg.trainer.fast_dev_run = True
+            cfg.trainer.enable_progress_bar = False
+            cfg.trainer.logger = False
+            cfg.trainer.enable_model_summary = False
+            cfg.trainer.accelerator = "cpu"
+            cfg.logger = None
+            cfg.callbacks = None
+            cfg.timesteps = 10
+            cfg.sample_timesteps = 10
+        HydraConfig().set_config(cfg)
+        train(cfg)

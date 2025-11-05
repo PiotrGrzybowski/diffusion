@@ -218,6 +218,9 @@ class Unet(nn.Module):
     ) -> None:
         super().__init__()
         time_dim = init_channels * 4
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
         self.time_embedding = TimeEmbedding(init_channels, time_dim)
         self.init_conv = nn.Conv2d(in_channels, init_channels, kernel_size=3, padding=1)
         self.final_block = ResnetBlock(init_channels * 2, init_channels, time_dim, dropout)

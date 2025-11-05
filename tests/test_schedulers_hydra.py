@@ -1,9 +1,10 @@
 import pytest
-from diffusion.schedulers import LinearScheduler
 from hydra import compose, initialize_config_dir
 from hydra.utils import instantiate
 from omegaconf import open_dict
 from rootutils import find_root
+
+from diffusion.schedulers import LinearScheduler
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ devices: 1
 # mixed precision for extra speed-up
 # precision: 16
 
-check_val_every_n_epoch: 5
+check_val_every_n_epoch: 1
 num_sanity_val_steps: 0
 
 # set True to to ensure deterministic results

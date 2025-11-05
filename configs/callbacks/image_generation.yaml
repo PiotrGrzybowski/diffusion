@@ -1,7 +1,5 @@
 image_generation:
   _target_: diffusion.callbacks.image_generation.ImageGenerationCallback
   output_dir: ${trainer.default_root_dir}
-  in_channels: ${in_channels}
-  dim: ${dim}
   samples: 16
-  every_n_epochs: 5
+  every_n_epochs: 1
