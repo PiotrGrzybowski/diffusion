@@ -31,7 +31,6 @@ class VarianceStrategy(ABC):
     @property
     @abstractmethod
     def trainable(self) -> bool:
-        """Whether this variance strategy requires model prediction (trainable variance)."""
         raise NotImplementedError
 
     def forward(self, inputs: VarianceInputs) -> VarianceOutputs:

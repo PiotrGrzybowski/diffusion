@@ -10,7 +10,7 @@ from diffusion.gaussian_diffusion import GaussianDiffusion
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
 from diffusion.utils.ranked_logger import RankedLogger
-from diffusion.utils.run_utils import custom_main
+from diffusion.utils.run_utils import custom_main, find_ckpt_path
 from diffusion.utils.task_wrapper import task_wrapper
 
 
@@ -27,6 +27,7 @@ def resolve_config(cfg: DictConfig) -> DictConfig:
 
     cfg.in_channels = datamodule.channels
     cfg.out_channels = cfg.in_channels * 2 if variance.trainable else cfg.in_channels
+    cfg.dim = datamodule.shape[-1]
 
     return cfg
 
@@ -57,8 +58,7 @@ def train(cfg: DictConfig):
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=loggers)
 
     log.info("Finding checkpoint path...")
-    # ckpt_path = find_ckpt_path(cfg)
-    ckpt_path = None
+    ckpt_path = find_ckpt_path(cfg)
 
     for logger in loggers:
         logger.log_hyperparams(dict(model.hparams))

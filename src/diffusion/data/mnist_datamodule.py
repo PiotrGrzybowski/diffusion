@@ -37,7 +37,7 @@ class MNISTDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.pin_memory = pin_memory
 
-        self.transforms = transforms.Compose([transforms.ToTensor(), transforms.RandomHorizontalFlip(), transforms.Normalize([0.5], [0.5])])
+        self.transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5], [0.5])])
 
         self.labels = labels
         self.train_samples_per_label = train_samples_per_label
