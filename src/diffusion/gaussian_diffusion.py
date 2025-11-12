@@ -183,6 +183,7 @@ class GaussianDiffusion(LightningModule):
     @torch.inference_mode()
     def sample(self, batch: torch.Tensor, timesteps: int):
         x_t = batch
+        x_prev = torch.empty_like(x_t)
 
         times = np.linspace(0, timesteps - 1, timesteps, dtype=int).tolist()[::-1]
 
@@ -191,9 +192,13 @@ class GaussianDiffusion(LightningModule):
         for timestep in times:
             timestep = torch.full((x_t.size(0),), timestep, device=x_t.device, dtype=torch.long)
             predicted_terms = self.model_step(x_t, timestep)
-            predicted_x_start = predicted_terms.x_start
             inputs = SampleInputs(
-                predicted_terms.mean, predicted_terms.variance, predicted_x_start, predicted_terms.epsilon, self.factors, timestep
+                predicted_terms.mean,
+                predicted_terms.variance,
+                predicted_terms.x_start,
+                predicted_terms.epsilon,
+                self.factors,
+                timestep,
             )
             x_t = self.image_sampler.sample(inputs)
             x_prev = ((x_t + 1) * 127.5).clamp(0, 255).to(torch.uint8)
@@ -220,7 +225,7 @@ class GaussianDiffusion(LightningModule):
         return model_output[:, self.model.in_channels :]
 
     def build_sample_factors(self, steps: int) -> Factors:
-        indexes = np.linspace(0, self.timesteps - 1, steps, dtype=int).tolist()[::-1]
+        indexes = np.linspace(0, self.timesteps - 1, steps, dtype=int)
         last_gamma = 1.0
         betas = []
         for i, gamma in enumerate(self.factors.gammas):

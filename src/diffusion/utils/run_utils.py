@@ -33,15 +33,19 @@ def custom_main(
     version_base: str,
 ) -> Callable[[TaskFunction], Any]:
     config_stem = config_name.split(".")[0] if "." in config_name else config_name
-    new_config_name = f"{config_stem}_run.yaml"
-    shutil.copy(os.path.join(config_path, config_name), os.path.join(config_path, new_config_name))
+    new_config_path = Path(config_name) / f"{config_stem}_run.yaml"
 
-    cfg = OmegaConf.load(os.path.join(config_path, new_config_name))
+    shutil.copy(Path(config_path) / config_name, new_config_path)
+
+    cfg = OmegaConf.load(new_config_path)
     if cfg.run_name is None:
         cfg.run_name = generate_run_name()
-    OmegaConf.save(cfg, os.path.join(config_path, new_config_name))
+    OmegaConf.save(cfg, new_config_path)
 
-    return hydra.main(config_path=config_path, config_name=new_config_name, version_base=version_base)
+    try:
+        return hydra.main(config_path=config_path, config_name=new_config_name, version_base=version_base)
+    finally:
+        os.remove(new_config_path)
 
 
 ADJECTIVES = [
