@@ -33,7 +33,8 @@ def custom_main(
     version_base: str,
 ) -> Callable[[TaskFunction], Any]:
     config_stem = config_name.split(".")[0] if "." in config_name else config_name
-    new_config_path = Path(config_name) / f"{config_stem}_run.yaml"
+    new_config_name = f"{config_stem}_run.yaml"
+    new_config_path = Path(config_path) / new_config_name
 
     shutil.copy(Path(config_path) / config_name, new_config_path)
 
