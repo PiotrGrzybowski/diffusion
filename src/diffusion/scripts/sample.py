@@ -50,7 +50,7 @@ def sample(cfg: DictConfig):
     x_t = torch.empty(0)
     result = np.empty(0)
     for timestep, x_t in enumerate(module.sample(batch, cfg.sample_timesteps)):
-        console.print(f"Val sampling: {timestep}/{module.sample_timesteps}", end="\r")
+        console.print(f"Sampling: {timestep}/{module.sample_timesteps}", end="\r")
         if cfg.show:
             result = make_grid(x_t, padding=0, nrow=int(math.sqrt(x_t.shape[0])))
             result = result.permute(1, 2, 0).to("cpu", torch.uint8).numpy()

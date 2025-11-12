@@ -2,10 +2,11 @@ from pathlib import Path
 
 import hydra
 import rootutils
-from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
+from lightning import Callback, LightningDataModule, Trainer, seed_everything
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 
+from diffusion.gaussian_diffusion import GaussianDiffusion
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
 from diffusion.utils.ranked_logger import RankedLogger
@@ -20,8 +21,21 @@ configs_path = root_path / "configs"
 log = RankedLogger(__name__, rank_zero_only=True)
 
 
+def resolve_config(cfg: DictConfig) -> DictConfig:
+    datamodule = hydra.utils.instantiate(cfg.data)
+    variance = hydra.utils.instantiate(cfg.diffusion.variance_strategy)
+
+    cfg.in_channels = datamodule.channels
+    cfg.out_channels = cfg.in_channels * 2 if variance.trainable else cfg.in_channels
+    cfg.dim = datamodule.shape[-1]
+
+    return cfg
+
+
 @task_wrapper
 def train(cfg: DictConfig):
+    cfg = resolve_config(cfg)
+
     log.info("Serialize config")
     OmegaConf.save(cfg, Path(cfg.paths.output_dir) / "config.yaml")
 
@@ -32,7 +46,7 @@ def train(cfg: DictConfig):
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
 
     log.info(f"Instantiating model <{cfg.diffusion._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.diffusion)
+    model: GaussianDiffusion = hydra.utils.instantiate(cfg.diffusion)
 
     log.info("Instantiating callbacks...")
     callbacks: list[Callback] = instantiate_callbacks(cfg.get("callbacks"))

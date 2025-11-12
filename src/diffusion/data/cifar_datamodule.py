@@ -51,6 +51,12 @@ class CIFAR10DataModule(LightningDataModule):
 
         self.batch_size_per_device = batch_size
 
+        self.shape = (3, 32, 32)
+
+    @property
+    def channels(self) -> int:
+        return self.shape[0]
+
     def prepare_data(self) -> None:
         self.dataset_class(str(self.path), train=True, download=True)
         self.dataset_class(str(self.path), train=False, download=True)

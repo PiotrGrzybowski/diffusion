@@ -37,7 +37,7 @@ class MNISTDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.pin_memory = pin_memory
 
-        self.transforms = transforms.Compose([transforms.ToTensor(), transforms.RandomHorizontalFlip(), transforms.Normalize([0.5], [0.5])])
+        self.transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5], [0.5])])
 
         self.labels = labels
         self.train_samples_per_label = train_samples_per_label
@@ -50,6 +50,11 @@ class MNISTDataModule(LightningDataModule):
         self.data_predict: Dataset | None = None
 
         self.batch_size_per_device = batch_size
+        self.shape = (1, 28, 28)
+
+    @property
+    def channels(self) -> int:
+        return self.shape[0]
 
     def prepare_data(self) -> None:
         self.dataset_class(self.path, train=True, download=True)
@@ -64,13 +69,13 @@ class MNISTDataModule(LightningDataModule):
             val_dataset = FilteredDataset(
                 self.dataset_class(self.path, train=False, transform=self.transforms), self.labels, self.val_samples_per_label
             )
-            sample_dataset = FilteredDataset(
-                self.dataset_class(self.path, train=False, transform=self.transforms), None, self.predict_samples
-            )
+            sample_dataset = FilteredDataset(self.dataset_class(self.path, train=False, transform=self.transforms), None, 10)
 
             self.data_train = train_dataset
             self.data_val = val_dataset
             self.data_sample = sample_dataset
+
+            self.shape = train_dataset[0][0].shape
 
     def train_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         if self.data_train:
@@ -95,7 +100,7 @@ class MNISTDataModule(LightningDataModule):
             )
             sample_dataloader = DataLoader(
                 dataset=self.data_sample,
-                batch_size=self.predict_samples,
+                batch_size=100,
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory,
                 shuffle=False,

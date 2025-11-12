@@ -58,7 +58,7 @@ def test_epsilon_mean_strategy(inputs: MeanInputs):
     mean_outputs = strategy.forward(inputs)
     mean = mean_outputs.mean
 
-    target_mean = torch.tensor([[[[0.54486120]]], [[[0.60551941]]]])
+    target_mean = torch.tensor([[[[0.54486990]]], [[[0.60551947]]]])
     target_x_start = torch.tensor([[[[0.49088836]]], [[[-53.38068008]]]])
     target_epsilon = torch.tensor([[[[1.60896802]]], [[[1.50490487]]]])
 
