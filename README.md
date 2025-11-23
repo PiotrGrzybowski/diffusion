@@ -20,25 +20,44 @@ Every component namely, nose schedulers, mean and variance strategies, samplers,
 - **Hydra-driven experiments** - clean experiment reproducibility with compositional configs.
 - **Research-first architecture** - minimal abstractions, maximal transparency.
 
-## Quick Start
-### Installation
+## Installation
 ```bash
 git clone https://github.com/PiotrGrzybowski/diffusion.git
 cd diffusion
 uv sync
 ```
 
-
 ### Training Your First Model
 
-Here's a complete example that trains a diffusion model on MNIST with the `epsilon` mean parametrization, `fixed_small` variance with `simple MSE` loss. It is enough to run if for `10` epochs to see initial results. Approximatelly 20 minutes on a single GPU.
+To train your first diffusion model, run the MNIST example below. This configuration uses the `epsilon` mean parameterization, the `fixed_small` variance, and the simple MSE objective. Training for approximately 10 epochs is sufficient to obtain initial results (around 20 minutes on a single GPU).
 
 ```bash
 ./scripts/mnist-epsilon-fixed_small-mse_simple.sh
 ```
 
+After training completes, checkpoints, logs, and validation samples will be stored under:
+
+```
+logs/
+└── mnist/
+    └── hydra/
+        └── epsilon-fixed_small-mse_simple/
+            ├── checkpoints/
+            │   ├── epoch_009.ckpt
+            │   └── last.ckpt
+            ├── config.yaml
+            ├── config_tree.log
+            ├── images/
+            │   ├── sample_4.png
+            │   └── sample_9.png
+            └── mnist.log
+```
+
+When you later run the sampling script, an additional `samples/` directory will appear next to `images/`, containing generated outputs.
+
 ### Sampling from the Trained Model
-After training you should observe the checkpoints and logs in the `logs/` directory. You can sample from the trained model using the `ls` command. The `sample.py` script will automatically locate the entire configuration and checkpoint based on the `task_name` and `run_name` used during training. In our case `mnist` and `epsilon-fixed_small-mse_simple`.
+
+The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For the quick start example, set these to `mnist` and `epsilon-fixed_small-mse_simple`:
 
 ```bash
 uv run python src/diffusion/scripts/sample.py \
@@ -48,7 +67,7 @@ uv run python src/diffusion/scripts/sample.py \
     show=True
 ```
 
-Progressive denoising steps will be displayed in a pop-up window. Final images will be saved in the `logs/mnist/epsilon-fixed_small-mse_simple/samples/` directory.
+During sampling, the progressive denoising steps will be displayed in a pop-up window. Final generated images will be written to: `logs/mnist/hydra/epsilon_fixed_small-mse_simple/samples`.
 
 
 ## Core Components
@@ -195,6 +214,14 @@ If you use this code or book in your research, please cite:
 
 ## Model Zoo
 Pretrained models will be made available soon.
+
+## Advanced Dataset Configurations
+Datamodules are prepared in such a way that you can easily select a subset of categories and number of samples. For example in MNIST you can select only digits `2` and `1` and limit the number of samples to `1000` by adding the following parameters to your config:
+
+```yaml
+data.labels: [2, 7]
+data.train_samples_per_label: 1000
+```
 
 ## License
 
