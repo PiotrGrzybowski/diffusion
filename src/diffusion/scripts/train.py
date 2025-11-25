@@ -10,7 +10,7 @@ from diffusion.gaussian_diffusion import GaussianDiffusion
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
 from diffusion.utils.ranked_logger import RankedLogger
-from diffusion.utils.run_utils import custom_main, find_ckpt_path
+from diffusion.utils.run_utils import find_ckpt_path
 from diffusion.utils.task_wrapper import task_wrapper
 
 
@@ -34,6 +34,8 @@ def resolve_config(cfg: DictConfig) -> DictConfig:
 
 @task_wrapper
 def train(cfg: DictConfig):
+    print(cfg.run_name)
+    print(cfg.task_name)
     cfg = resolve_config(cfg)
 
     log.info("Serialize config")
@@ -58,7 +60,11 @@ def train(cfg: DictConfig):
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=loggers)
 
     log.info("Finding checkpoint path...")
-    ckpt_path = find_ckpt_path(cfg)
+    if cfg.run_name is None:
+        log.info("Debug run, skipping checkpoint loading...")
+        ckpt_path = None
+    else:
+        ckpt_path = find_ckpt_path(cfg)
 
     for logger in loggers:
         logger.log_hyperparams(dict(model.hparams))
@@ -72,8 +78,15 @@ def train(cfg: DictConfig):
         trainer.validate(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
 
-@custom_main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")
+@hydra.main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")
 def main(cfg: DictConfig) -> float | None:
+    def a():
+        extras(cfg)
+        train(cfg)
+
+    print(cfg.run_name)
+    print(cfg.trainer.accelerator)
+    print(cfg.trainer)
     extras(cfg)
     train(cfg)
 

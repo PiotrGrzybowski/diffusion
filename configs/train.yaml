@@ -27,7 +27,6 @@ batch_size: 128
 task_name: null
 run_name: null
 
-tags: ["dev"]
 train: True
 validate: False
 
