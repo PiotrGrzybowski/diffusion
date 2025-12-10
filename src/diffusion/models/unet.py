@@ -218,6 +218,9 @@ class Unet(nn.Module):
     ) -> None:
         super().__init__()
         time_dim = init_channels * 4
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
         self.time_embedding = TimeEmbedding(init_channels, time_dim)
         self.init_conv = nn.Conv2d(in_channels, init_channels, kernel_size=3, padding=1)
         self.final_block = ResnetBlock(init_channels * 2, init_channels, time_dim, dropout)
@@ -241,13 +244,3 @@ class Unet(nn.Module):
         x = self.final_conv(x)
 
         return x
-
-
-if __name__ == "__main__":
-    encoder = UnetEncoder([128, 128, 256, 512], [True, True, False], 512, ["linear", "linear", "dot"], 4, 32, 0)
-    time = torch.rand((16, 512))
-    # print(encoder)
-    x = torch.rand((16, 128, 64, 64))
-    encoder(x, time)
-
-    decoder = UnetDecoder([512, 256, 128, 128], [True, True, False], 512, ["dot", "linear", "linear"], 4, 32, 0)

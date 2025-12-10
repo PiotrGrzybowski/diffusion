@@ -2,14 +2,17 @@ from pathlib import Path
 
 import hydra
 import rootutils
-from lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
+from lightning import Callback, LightningDataModule, Trainer, seed_everything
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 
+from diffusion.gaussian_diffusion import GaussianDiffusion
 from diffusion.utils.extras import extras
+from diffusion.utils.hydra_utils import resolve_config
 from diffusion.utils.instantiators import instantiate_callbacks, instantiate_loggers
+from diffusion.utils.naming import generate_run_name_from_hydra
 from diffusion.utils.ranked_logger import RankedLogger
-from diffusion.utils.run_utils import custom_main, find_ckpt_path
+from diffusion.utils.run_utils import find_ckpt_path
 from diffusion.utils.task_wrapper import task_wrapper
 
 
@@ -17,11 +20,17 @@ root_path = rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpat
 configs_path = root_path / "configs"
 
 
+if not OmegaConf.has_resolver("auto_run_name"):
+    OmegaConf.register_new_resolver("auto_run_name", generate_run_name_from_hydra)
+
+
 log = RankedLogger(__name__, rank_zero_only=True)
 
 
 @task_wrapper
 def train(cfg: DictConfig):
+    cfg = resolve_config(cfg)
+
     log.info("Serialize config")
     OmegaConf.save(cfg, Path(cfg.paths.output_dir) / "config.yaml")
 
@@ -32,7 +41,7 @@ def train(cfg: DictConfig):
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
 
     log.info(f"Instantiating model <{cfg.diffusion._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.diffusion)
+    model: GaussianDiffusion = hydra.utils.instantiate(cfg.diffusion)
 
     log.info("Instantiating callbacks...")
     callbacks: list[Callback] = instantiate_callbacks(cfg.get("callbacks"))
@@ -58,7 +67,7 @@ def train(cfg: DictConfig):
         trainer.validate(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
 
-@custom_main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")
+@hydra.main(version_base="1.3", config_path=str(configs_path), config_name="train.yaml")
 def main(cfg: DictConfig) -> float | None:
     extras(cfg)
     train(cfg)

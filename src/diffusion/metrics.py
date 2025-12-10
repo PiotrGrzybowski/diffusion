@@ -48,12 +48,3 @@ class VarianceKL(Metric):
 
     def compute(self):
         return self.sum / self.total
-
-
-if __name__ == "__main__":
-    pass
-    metric = ScalarAverage()
-    metric = VarianceKL()
-    metric.update(torch.tensor(1.0), torch.tensor(0.5))
-    metric.update(torch.tensor(2.0), torch.tensor(1.0))
-    print(metric.compute())

@@ -1,0 +1,2 @@
+_target_: diffusion.image_samplers.DDIMSampler
+eta: 0.0001

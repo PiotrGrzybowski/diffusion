@@ -1,0 +1,4 @@
+_target_: diffusion.schedulers.CosineScheduler
+timesteps: ${timesteps}
+s: 0.008
+max_beta: 0.999

@@ -16,7 +16,7 @@ class DotAttention(nn.Module):
         self.norm = RMSNorm(dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        b, c, h, w = x.shape
+        b, _, h, w = x.shape
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim=1)
 
@@ -50,7 +50,7 @@ class OptimizedAttention(nn.Module):
         self.multihead_attention = nn.MultiheadAttention(embed_dim=self.embed_dim, num_heads=heads, batch_first=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        b, c, h, w = x.shape
+        b, _, h, w = x.shape
         x = self.norm(x)
 
         projected_input = self.projection(x)
@@ -75,7 +75,7 @@ class LinearAttention(nn.Module):
         self.norm = RMSNorm(dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        b, c, h, w = x.shape
+        b, _, h, w = x.shape
         x = self.norm(x)
 
         qkv = self.to_qkv(x).chunk(3, dim=1)
@@ -99,18 +99,3 @@ def create_attention(attention: str, dim: int, heads: int, head_dim: int) -> nn.
         return DotAttention(dim, heads, head_dim)
     else:
         raise ValueError(f"Unknown attention type {attention}")
-
-
-if __name__ == "__main__":
-    x = torch.rand(4, 256, 8, 8)
-
-    attention = DotAttention(256, 4, 300)
-    print(attention)
-    out = attention(x)
-
-    linear_attention = LinearAttention(256, 4, 300)
-    out = linear_attention(x)
-    print(out.shape)
-
-    optimized_attention = OptimizedAttention(256, 4, 300)
-    optimized_out = optimized_attention(x)

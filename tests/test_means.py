@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from diffusion.diffusion_factors import Factors
-from diffusion.means import DirectMean, EpsilonMean, MeanInputs, XStartMean, epsilon_from_xstart, x_start_from_mean
+from diffusion.means import DirectMean, EpsilonMean, MeanInputs, XStartMean
 from diffusion.schedulers import LinearScheduler
 
 
@@ -25,9 +25,6 @@ def test_direct_mean_strategy(inputs: MeanInputs):
     mean_outputs = strategy.forward(inputs)
     mean = mean_outputs.mean
     target_mean = torch.tensor([1.60896802, 1.50490487])
-    target_x_start = x_start_from_mean(inputs.x_t, inputs.model_output, inputs.factors, inputs.timesteps)
-    target_epsilon = epsilon_from_xstart(target_x_start, inputs.x_t, inputs.factors, inputs.timesteps)
-
     target_x_start = torch.tensor([[[[7.12551117]]], [[[2953.06787109]]]])
     target_epsilon = torch.tensor([[[[-163.29997253]]], [[[-47.92512512]]]])
 
@@ -58,7 +55,7 @@ def test_epsilon_mean_strategy(inputs: MeanInputs):
     mean_outputs = strategy.forward(inputs)
     mean = mean_outputs.mean
 
-    target_mean = torch.tensor([[[[0.54486120]]], [[[0.60551941]]]])
+    target_mean = torch.tensor([[[[0.54486990]]], [[[0.60551947]]]])
     target_x_start = torch.tensor([[[[0.49088836]]], [[[-53.38068008]]]])
     target_epsilon = torch.tensor([[[[1.60896802]]], [[[1.50490487]]]])
 

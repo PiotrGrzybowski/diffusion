@@ -3,8 +3,9 @@ defaults:
   - scheduler: linear
   - mean_strategy: epsilon
   - variance_strategy: fixed_small
-  - loss: mse_mean_epsilon_simple
-  - sampler: ddpm
+  - loss: mse_epsilon_simple
+  - image_sampler: ddpm
+  - timestep_sampler: uniform
   - model: unet
 
 _target_: diffusion.gaussian_diffusion.GaussianDiffusion
@@ -13,7 +14,7 @@ sample_timesteps: ${sample_timesteps}
 scheduler: ${scheduler}
 mean_strategy: ${mean_strategy}
 variance_strategy: ${variance_strategy}
-sampler: ${sampler}
+image_sampler: ${image_sampler}
+timestep_sampler: ${timestep_sampler}
 loss: ${loss}
 model: ${model}
-in_channels: ${in_channels}

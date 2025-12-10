@@ -28,11 +28,20 @@ class VarianceStrategy(ABC):
     def log_variance(self, inputs: VarianceInputs) -> torch.Tensor:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def trainable(self) -> bool:
+        raise NotImplementedError
+
     def forward(self, inputs: VarianceInputs) -> VarianceOutputs:
         return VarianceOutputs(self.variance(inputs), self.log_variance(inputs))
 
 
 class FixedSmallVariance(VarianceStrategy):
+    @property
+    def trainable(self) -> bool:
+        return False
+
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         factors = inputs.factors
 
@@ -51,6 +60,10 @@ class FixedSmallVariance(VarianceStrategy):
 
 
 class FixedLargeVariance(VarianceStrategy):
+    @property
+    def trainable(self) -> bool:
+        return False
+
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         return inputs.factors.betas[inputs.timesteps]
 
@@ -59,6 +72,10 @@ class FixedLargeVariance(VarianceStrategy):
 
 
 class DirectVariance(VarianceStrategy):
+    @property
+    def trainable(self) -> bool:
+        return True
+
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         return inputs.model_output.clamp(min=1e-9)
 
@@ -67,6 +84,10 @@ class DirectVariance(VarianceStrategy):
 
 
 class DirectLogVariance(VarianceStrategy):
+    @property
+    def trainable(self) -> bool:
+        return True
+
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         return torch.exp(inputs.model_output)
 
@@ -78,6 +99,10 @@ class TrainableRangeVariance(VarianceStrategy):
     def __init__(self, lower_variance: VarianceStrategy, upper_variance: VarianceStrategy) -> None:
         self.lower_variance = lower_variance
         self.uper_variance = upper_variance
+
+    @property
+    def trainable(self) -> bool:
+        return True
 
     def variance(self, inputs: VarianceInputs) -> torch.Tensor:
         return torch.exp(self.log_variance(inputs))

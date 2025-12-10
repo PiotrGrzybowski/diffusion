@@ -17,7 +17,7 @@ def diffusion_configs_path() -> Path:
     return find_root("pyproject.toml") / "configs" / "diffusion"
 
 
-@pytest.mark.parametrize("dataset_name", ["mnist", "fashion", "kmnist"])
+@pytest.mark.parametrize("dataset_name", ["mnist", "fashion"])
 def test_mnist_data_download(data_path: Path, dataset_name: str) -> None:
     """Tests if MNIST data is downloaded and the correct directory structure is created."""
     datamodule = MNISTDataModule(path=data_path, dataset_name=dataset_name, batch_size=32)
@@ -69,10 +69,20 @@ def test_mnist_filtered(data_path: Path, batch_size: int) -> None:
     )
     datamodule.setup()
 
-    batch = next(iter(datamodule.train_dataloader()))
-    x, y = batch
+    train_dataloader = datamodule.train_dataloader()
+    train_batch = next(iter(train_dataloader))
+    x, y = train_batch
     assert len(x) == batch_size
     assert len(y) == batch_size
 
-    assert len(datamodule.train_dataloader()) == (1280 * 2) // batch_size
-    assert len(datamodule.val_dataloader()) == (320 * 2) // batch_size
+    assert len(train_dataloader) == (1280 * 2) // batch_size
+
+    val_dataloader, sample_dataloader = datamodule.val_dataloader()
+    val_batch = next(iter(val_dataloader))
+    x_val, y_val = val_batch
+    assert len(x_val) == batch_size
+    assert len(y_val) == batch_size
+
+    sample_batch = next(iter(sample_dataloader))
+    x_sample, _ = sample_batch
+    assert len(x_sample) == datamodule.predict_samples

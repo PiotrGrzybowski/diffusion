@@ -16,13 +16,13 @@ class SampleInputs:
     timesteps: torch.Tensor
 
 
-class Sampler(ABC):
+class ImageSampler(ABC):
     @abstractmethod
     def sample(self, inputs: SampleInputs) -> torch.Tensor:
         raise NotImplementedError
 
 
-class DDPMSampler(Sampler):
+class DDPMSampler(ImageSampler):
     def sample(self, inputs: SampleInputs) -> torch.Tensor:
         mean = inputs.mean
         variance = inputs.variance
@@ -36,7 +36,7 @@ class DDPMSampler(Sampler):
         return x_prev
 
 
-class DDIMSampler(Sampler):
+class DDIMSampler(ImageSampler):
     def __init__(self, eta: float):
         self.eta = eta
 

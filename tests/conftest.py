@@ -6,7 +6,7 @@ from rootutils import find_root
 
 
 @pytest.fixture
-def data_path() -> Path:
+def data_path(scope="session") -> Path:
     """A pytest fixture for creating a temporary directory for data.
 
     Returns:

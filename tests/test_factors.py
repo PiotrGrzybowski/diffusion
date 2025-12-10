@@ -1,3 +1,5 @@
+import math
+
 import pytest
 import torch
 
@@ -31,7 +33,7 @@ def test_factors(factors: Factors):
     assert factors.betas.shape == (1000, 1, 1, 1)
     assert factors.gammas.shape == (1000, 1, 1, 1)
     assert factors.gammas_prev.shape == (1000, 1, 1, 1)
-    assert factors.gammas_prev[0].squeeze() == 1.0
+    assert math.isclose(factors.gammas_prev[0].item(), 1.0)
 
     assert torch.allclose(factors.alphas, 1 - factors.betas)
     assert torch.allclose(factors.gammas_prev[1:], factors.gammas[:-1])

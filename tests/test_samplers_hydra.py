@@ -3,12 +3,12 @@ from hydra import compose, initialize_config_dir
 from hydra.utils import instantiate
 from rootutils import find_root
 
-from diffusion.samplers import DDIMSampler, DDPMSampler
+from diffusion.image_samplers import DDIMSampler, DDPMSampler
 
 
 @pytest.fixture
 def config_dir() -> str:
-    return str(find_root(__file__, indicator="pyproject.toml") / "configs" / "diffusion" / "sampler")
+    return str(find_root(__file__, indicator="pyproject.toml") / "configs" / "diffusion" / "image_sampler")
 
 
 def test_direct_mean_instantiate(config_dir: str):
