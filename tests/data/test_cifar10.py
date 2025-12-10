@@ -22,6 +22,7 @@ def datamodule() -> CIFAR10DataModule:
         LightningDataModule: An instance of CIFAR10DataModule.
     """
     module = CIFAR10DataModule(path=DATA_PATH, batch_size=BATCH_SIZE)
+    module.prepare_data()
     module.setup()
     return module
 

@@ -1,0 +1,84 @@
+name: Build and Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Ruff Linter
+        uses: chartboost/ruff-action@v1
+        with:
+          args: 'check .'
+
+  test:
+    name: Test and SonarQube Analysis
+    needs: lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Cache Python virtual environment
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run tests with coverage
+        run: |
+          uv run pytest --cov=src/diffusion --cov-report=xml:coverage.xml --cov-report=html --cov-report=term -v
+
+      - name: Verify coverage report exists
+        run: |
+          if [ -f coverage.xml ]; then
+            echo "✓ Coverage report generated successfully"
+            ls -lh coverage.xml
+            echo "First few lines of coverage.xml:"
+            head -n 5 coverage.xml
+            echo ""
+            echo "Working directory: $(pwd)"
+            echo "Coverage file absolute path: $(realpath coverage.xml)"
+          else
+            echo "✗ ERROR: coverage.xml not found!"
+            ls -la
+            exit 1
+          fi
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
