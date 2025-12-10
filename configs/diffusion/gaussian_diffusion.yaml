@@ -14,7 +14,7 @@ sample_timesteps: ${sample_timesteps}
 scheduler: ${scheduler}
 mean_strategy: ${mean_strategy}
 variance_strategy: ${variance_strategy}
-image_sampler: ${sampler}
+image_sampler: ${image_sampler}
 timestep_sampler: ${timestep_sampler}
 loss: ${loss}
 model: ${model}

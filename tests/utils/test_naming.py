@@ -1,16 +1,16 @@
 """Tests for the naming utility module."""
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from omegaconf import DictConfig, OmegaConf
+import pytest
+from omegaconf import OmegaConf
 
 from diffusion.utils.naming import (
+    _sanitize_name,
     auto_generate_names,
     generate_run_name,
     validate_naming_config,
-    _sanitize_name,
 )
 
 
@@ -18,6 +18,7 @@ from diffusion.utils.naming import (
 def setup_rank_zero():
     """Setup rank_zero_only.rank for RankedLogger."""
     from lightning_utilities.core.rank_zero import rank_zero_only
+
     rank_zero_only.rank = 0
     yield
     rank_zero_only.rank = None
@@ -61,9 +62,7 @@ class TestGenerateRunName:
             "diffusion/variance_strategy": "fixed_small",
             "diffusion/loss": "mse_epsilon_simple",
         }
-        name = generate_run_name(
-            choices, "mnist", Path("/tmp/test_logs"), append_timestamp_on_collision=False
-        )
+        name = generate_run_name(choices, "mnist", Path("/tmp/test_logs"), append_timestamp_on_collision=False)
         assert name == "unet-epsilon-fixed_small-mse_epsilon_simple"
 
     def test_generation_with_hybrid_loss(self):
@@ -74,9 +73,7 @@ class TestGenerateRunName:
             "diffusion/variance_strategy": "trainable_range",
             "diffusion/loss": "hybrid",
         }
-        name = generate_run_name(
-            choices, "cifar10", Path("/tmp/test_logs"), append_timestamp_on_collision=False
-        )
+        name = generate_run_name(choices, "cifar10", Path("/tmp/test_logs"), append_timestamp_on_collision=False)
         assert name == "small_unet-xstart-trainable_range-hybrid"
 
     def test_collision_handling(self, tmp_path):
@@ -126,28 +123,34 @@ class TestValidateNamingConfig:
 
     def test_valid_config(self):
         """Test that valid config passes validation."""
-        cfg = OmegaConf.create({
-            "task_name": "mnist",
-            "run_name": "valid-run-name",
-        })
+        cfg = OmegaConf.create(
+            {
+                "task_name": "mnist",
+                "run_name": "valid-run-name",
+            }
+        )
         # Should not raise any exception
         validate_naming_config(cfg)
 
     def test_empty_task_name(self):
         """Test that empty task_name raises error."""
-        cfg = OmegaConf.create({
-            "task_name": None,
-            "run_name": "valid-run-name",
-        })
+        cfg = OmegaConf.create(
+            {
+                "task_name": None,
+                "run_name": "valid-run-name",
+            }
+        )
         with pytest.raises(ValueError, match="task_name cannot be empty"):
             validate_naming_config(cfg)
 
     def test_empty_run_name(self):
         """Test that empty run_name raises error."""
-        cfg = OmegaConf.create({
-            "task_name": "mnist",
-            "run_name": None,
-        })
+        cfg = OmegaConf.create(
+            {
+                "task_name": "mnist",
+                "run_name": None,
+            }
+        )
         with pytest.raises(ValueError, match="run_name cannot be empty"):
             validate_naming_config(cfg)
 
@@ -161,10 +164,12 @@ class TestValidateNamingConfig:
             "run*name",
         ]
         for invalid_name in invalid_names:
-            cfg = OmegaConf.create({
-                "task_name": "mnist",
-                "run_name": invalid_name,
-            })
+            cfg = OmegaConf.create(
+                {
+                    "task_name": "mnist",
+                    "run_name": invalid_name,
+                }
+            )
             with pytest.raises(ValueError, match="invalid filesystem characters"):
                 validate_naming_config(cfg)
 
@@ -186,11 +191,13 @@ class TestAutoGenerateNames:
         }
         mock_hydra_config.get.return_value.runtime = mock_runtime
 
-        cfg = OmegaConf.create({
-            "task_name": None,
-            "run_name": None,
-            "paths": {"log_dir": "/tmp/logs"},
-        })
+        cfg = OmegaConf.create(
+            {
+                "task_name": None,
+                "run_name": None,
+                "paths": {"log_dir": "/tmp/logs"},
+            }
+        )
 
         result = auto_generate_names(cfg)
 
@@ -210,11 +217,13 @@ class TestAutoGenerateNames:
         }
         mock_hydra_config.get.return_value.runtime = mock_runtime
 
-        cfg = OmegaConf.create({
-            "task_name": "custom_task",
-            "run_name": "custom_run",
-            "paths": {"log_dir": "/tmp/logs"},
-        })
+        cfg = OmegaConf.create(
+            {
+                "task_name": "custom_task",
+                "run_name": "custom_run",
+                "paths": {"log_dir": "/tmp/logs"},
+            }
+        )
 
         result = auto_generate_names(cfg)
 
@@ -234,17 +243,19 @@ class TestAutoGenerateNames:
         }
         mock_hydra_config.get.return_value.runtime = mock_runtime
 
-        cfg = OmegaConf.create({
-            "task_name": None,
-            "run_name": None,
-            "debug_mode": True,
-            "paths": {"log_dir": "/tmp/logs"},
-            "logger": {
-                "wandb": {
-                    "offline": False,
-                }
-            },
-        })
+        cfg = OmegaConf.create(
+            {
+                "task_name": None,
+                "run_name": None,
+                "debug_mode": True,
+                "paths": {"log_dir": "/tmp/logs"},
+                "logger": {
+                    "wandb": {
+                        "offline": False,
+                    }
+                },
+            }
+        )
 
         result = auto_generate_names(cfg)
 
@@ -260,13 +271,15 @@ class TestAutoGenerateNames:
         mock_runtime.choices = {"data": "mnist"}
         mock_hydra_config.get.return_value.runtime = mock_runtime
 
-        cfg = OmegaConf.create({
-            "task_name": "mnist",
-            "run_name": "my_debug_run",
-            "debug_mode": True,
-            "paths": {"log_dir": "/tmp/logs"},
-            "logger": {"wandb": {"offline": False}},
-        })
+        cfg = OmegaConf.create(
+            {
+                "task_name": "mnist",
+                "run_name": "my_debug_run",
+                "debug_mode": True,
+                "paths": {"log_dir": "/tmp/logs"},
+                "logger": {"wandb": {"offline": False}},
+            }
+        )
 
         result = auto_generate_names(cfg)
 

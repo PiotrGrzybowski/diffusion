@@ -10,15 +10,6 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 
 def extras(cfg: DictConfig) -> None:
-    """Applies optional utilities before the task is started.
-
-    Utilities:
-        - Ignoring python warnings
-        - Setting tags from command line
-        - Rich config printing
-
-    :param cfg: A DictConfig object containing the config tree.
-    """
     if not cfg.get("extras"):
         log.warning("Extras config not found! <cfg.extras=null>")
         return

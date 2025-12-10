@@ -100,7 +100,7 @@ class MNISTDataModule(LightningDataModule):
             )
             sample_dataloader = DataLoader(
                 dataset=self.data_sample,
-                batch_size=100,
+                batch_size=self.predict_samples,
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory,
                 shuffle=False,

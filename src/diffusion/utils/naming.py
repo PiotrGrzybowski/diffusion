@@ -15,6 +15,7 @@ from omegaconf import DictConfig
 
 from diffusion.utils.ranked_logger import RankedLogger
 
+
 log = RankedLogger(__name__, rank_zero_only=True)
 
 
@@ -67,17 +68,19 @@ def _sanitize_name(name: str) -> str:
         Sanitized name that is filesystem and URL safe
 
     Example:
-        >>> _sanitize_name("Model-Name_123")
+        >>> _sanitize_name(
+        ...     "Model-Name_123"
+        ... )
         'model-name_123'
-        >>> _sanitize_name("special@chars#here")
+        >>> _sanitize_name(
+        ...     "special@chars#here"
+        ... )
         'special_chars_here'
     """
     name = name.lower()
     name = re.sub(r"[^a-z0-9_-]", "_", name)
     name = re.sub(r"_+", "_", name)
     return name.strip("_")
-
-
 
 
 def _get_timestamp_suffix() -> str:
@@ -115,9 +118,16 @@ def generate_run_name(
         ...     "diffusion/model": "unet",
         ...     "diffusion/mean_strategy": "epsilon",
         ...     "diffusion/variance_strategy": "fixed_small",
-        ...     "diffusion/loss": "mse_epsilon_simple"
+        ...     "diffusion/loss": "mse_epsilon_simple",
         ... }
-        >>> generate_run_name(choices, "mnist", Path("/tmp/test_logs"), False)
+        >>> generate_run_name(
+        ...     choices,
+        ...     "mnist",
+        ...     Path(
+        ...         "/tmp/test_logs"
+        ...     ),
+        ...     False,
+        ... )
         'unet-epsilon-fixed_small-mse_epsilon_simple'
     """
     # Extract choices
@@ -141,10 +151,7 @@ def generate_run_name(
         if expected_path.exists():
             timestamp = _get_timestamp_suffix()
             final_name = f"{base_name}-{timestamp}"
-            log.info(
-                f"Run name '{base_name}' already exists. "
-                f"Using timestamped name: '{final_name}'"
-            )
+            log.info(f"Run name '{base_name}' already exists. Using timestamped name: '{final_name}'")
             return final_name
 
     return base_name
@@ -160,24 +167,15 @@ def validate_naming_config(cfg: DictConfig) -> None:
         ValueError: If critical naming fields are invalid
     """
     if not cfg.task_name:
-        raise ValueError(
-            "task_name cannot be empty after auto-generation. "
-            "Check that 'data' choice is set in Hydra config."
-        )
+        raise ValueError("task_name cannot be empty after auto-generation. Check that 'data' choice is set in Hydra config.")
 
     if not cfg.run_name:
-        raise ValueError(
-            "run_name cannot be empty after auto-generation. "
-            "Check that diffusion model/loss/variance choices are set."
-        )
+        raise ValueError("run_name cannot be empty after auto-generation. Check that diffusion model/loss/variance choices are set.")
 
     # Validate filesystem safety
     invalid_chars = set('<>:"/\\|?*')
     if any(c in cfg.run_name for c in invalid_chars):
-        raise ValueError(
-            f"run_name '{cfg.run_name}' contains invalid filesystem characters. "
-            f"Invalid chars: {invalid_chars}"
-        )
+        raise ValueError(f"run_name '{cfg.run_name}' contains invalid filesystem characters. Invalid chars: {invalid_chars}")
 
 
 def auto_generate_names(cfg: DictConfig) -> DictConfig:
