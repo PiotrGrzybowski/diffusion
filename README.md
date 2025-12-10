@@ -20,21 +20,6 @@ Every component—noise schedulers, mean and variance strategies, samplers, obje
 - **Hydra-driven experiments** - clean experiment reproducibility with compositional configs.
 - **Research-first architecture** - minimal abstractions, maximal transparency.
 
-## Table of Contents
-
-- [Installation](#installation)
-- [Training Your First Model](#training-your-first-model)
-- [Sampling from the Trained Model](#sampling-from-the-trained-model)
-- [Core Components](#core-components)
-- [Configuration System](#configuration-system)
-- [Dataset Configuration](#dataset-configuration)
-- [Repository Structure](#repository-structure)
-- [Testing](#testing)
-- [Development](#development)
-- [Citation](#citation)
-- [Acknowledgments](#acknowledgments)
-- [Model Zoo](#model-zoo)
-
 ## Installation
 ```bash
 git clone https://github.com/PiotrGrzybowski/diffusion.git
@@ -62,7 +47,7 @@ After training completes, checkpoints, logs, and validation samples will be stor
 logs/
 └── mnist/
     ├── hydra/
-    │   └── epsilon-fixed_small-mse_simple/
+    │   └── unet-epsilon-fixed_small-mse_epsilon_simple/
     │       ├── checkpoints/
     │       │   ├── epoch_009.ckpt
     │       │   └── last.ckpt
@@ -73,19 +58,19 @@ logs/
     │       │   └── sample_9.png
     │       └── mnist.log
     └── tensorboard/
-        └── epsilon-fixed_small-mse_simple/
+        └── unet-epsilon-fixed_small-mse_epsilon_simple/
 ```
 
 When you later run the sampling script, an additional `samples/` directory will appear next to `images/`, containing generated outputs.
 
 ### Sampling from the Trained Model
-The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For the quick start example, set these to `mnist` and `epsilon-fixed_small-mse_simple`:
+The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For the quick start example, set these to `mnist` and `unet-epsilon-fixed_small-mse_epsilon_simple`:
 
 ```bash
-uv run sample task_name="mnist" run_name="epsilon-fixed_small-mse_simple" samples=16 show=True
+uv run sample task_name="mnist" run_name="unet-epsilon-fixed_small-mse_epsilon_simple" samples=16 show=True
 ```
 
-During sampling, the progressive denoising steps will be displayed in a pop-up window. Final generated images will be written to: `logs/mnist/hydra/epsilon_fixed_small-mse_simple/samples`. Images are also available in the configured logger (e.g., TensorBoard).
+During sampling, the progressive denoising steps will be displayed in a pop-up window. Final generated images will be written to: `logs/mnist/hydra/unet-epsilon-fixed_small-mse_epsilon_simple/samples`. Images are also available in the configured logger (e.g., TensorBoard).
 
 ## Core Components
 The implementation is organized around four key architectural decisions that you can mix and match:
@@ -122,7 +107,7 @@ Select the sampling strategy by setting `diffusion/image_sampler={option}`:
 - `ddim`: Denoising Diffusion Implicit Models (deterministic sampling)
 
 #### 6. Timestep Sampler
-- `uniform`: Uniformly samples timesteps from 1 to T
+- `uniform`: Uniformly samples timesteps from 1 to T (default)
 - `tbd`
 
 **Files**: Core implementations in `src/diffusion/`, `schedulers.py`, `losses.py`, `means.py`, `variances.py`, `images_samplers.py`, `timestep_samplers.py`
@@ -158,11 +143,10 @@ Callbacks:
   - For longer training, increase `callbacks.image_generation.every_n_epochs` from `10` to a larger value as image sampling is time-consuming
 
 To effectively track and organize experiments, each run is identified by two key parameters:
-- `task_name`: Group of experiments, by default it is set to the name of used dataset (e.g., `cifar10`, `mnist`).
-- `run_name`: Unique experiment identifier, by default generated with a convention of `{model}-{mean_strategy}-{variance_strategy}-{loss}`. 
-- Example: `unet-epsilon-fixed_small-mse_epsilon_simple`.
-
-
+- `task_name`: Group of experiments (auto-generated from dataset name, e.g., `mnist`, `cifar10`)
+- `run_name`: Unique experiment identifier (auto-generated as `{model}-{mean}-{variance}-{loss}`)
+- Example: `unet-epsilon-fixed_small-mse_epsilon_simple`
+- Both names can be explicitly set via CLI or config files if desired
 
 All configs are in `configs/` organized by component:
 
@@ -191,8 +175,14 @@ uv run train \
     trainer=gpu \
     trainer.max_epochs=20 \
     batch_size=64 \
-    task_name="mnist-experiment" \
-    run_name="epsilon-fixed_small-mse_simple"
+    predict_samples=16 \
+    data=mnist \
+    diffusion/model=unet \
+    diffusion/mean_strategy=epsilon \
+    diffusion/variance_strategy=fixed_small \
+    diffusion/loss=mse_epsilon_simple \
+    diffusion/scheduler=linear \
+    logger=tensorboard
 ```
 
 This is equivalent to the `quick_start` experiment. Now you can override specific components:
@@ -234,7 +224,6 @@ uv run train experiment=quick_start data.labels=[2,7] data.train_samples_per_lab
 ```
 
 ## Repository Structure
-
 
 ```
 src/diffusion/
@@ -332,10 +321,4 @@ Pretrained models will be made available soon.
 
 ## License
 
-[Your license here]
-```
-logs/{task_name}/
-├── hydra/{run_name}/
-└── wandb/run-{timestamp}-{run_name}/
-```
-
+MIT License - See LICENSE file for details

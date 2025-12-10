@@ -48,6 +48,8 @@ class GaussianDiffusion(LightningModule):
         self.val_variance_kl = VarianceKL()
         self.nll_metric = ScalarAverage()
 
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-4)
+
         self.register_components()
 
     def q_mean(self, timesteps: torch.Tensor, x_start: torch.Tensor) -> torch.Tensor:
@@ -207,7 +209,7 @@ class GaussianDiffusion(LightningModule):
         yield x_prev
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr=2e-4)
+        return self.optimizer
 
     def register_components(self):
         components = {
@@ -215,6 +217,10 @@ class GaussianDiffusion(LightningModule):
             "variance": self.variance_strategy.__class__.__name__,
             "loss": self.loss.__class__.__name__,
             "scheduler": self.scheduler.__class__.__name__,
+            "optimizer": self.optimizer.__class__.__name__,
+            "image_sampler": self.image_sampler.__class__.__name__,
+            "timestep_sampler": self.timestep_sampler.__class__.__name__,
+            "model": self.model.__class__.__name__,
         }
         self.save_hyperparameters(components)
 

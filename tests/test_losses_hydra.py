@@ -22,7 +22,7 @@ def config_dir() -> str:
 
 def test_mse_mean_direct_loss_instantiate(config_dir: str):
     with initialize_config_dir(config_dir=config_dir, version_base="1.3"):
-        cfg = compose(config_name="mse_mean_direct.yaml")
+        cfg = compose(config_name="mse_mean.yaml")
 
     mean_strategy = instantiate(cfg)
     assert isinstance(mean_strategy, MseMeanDirect)
@@ -30,39 +30,39 @@ def test_mse_mean_direct_loss_instantiate(config_dir: str):
 
 def test_mse_mean_direct_loss_simple_instantiate(config_dir: str):
     with initialize_config_dir(version_base="1.3", config_dir=config_dir):
-        cfg = compose(config_name="mse_mean_direct_simple.yaml")
+        cfg = compose(config_name="mse_mean_simple.yaml")
 
     mean_strategy = instantiate(cfg)
     assert isinstance(mean_strategy, MseMeanDirectSimple)
 
 
-def test_mse_mean_xstart_loss_instantiate(config_dir: str):
+def test_mse_xstart_loss_instantiate(config_dir: str):
     with initialize_config_dir(version_base="1.3", config_dir=config_dir):
-        cfg = compose(config_name="mse_mean_xstart.yaml")
+        cfg = compose(config_name="mse_xstart.yaml")
 
     mean_strategy = instantiate(cfg)
     assert isinstance(mean_strategy, MseMeanXStart)
 
 
-def test_mse_mean_xstart_loss_simple_instantiate(config_dir: str):
+def test_mse_xstart_loss_simple_instantiate(config_dir: str):
     with initialize_config_dir(version_base="1.3", config_dir=config_dir):
-        cfg = compose(config_name="mse_mean_xstart_simple.yaml")
+        cfg = compose(config_name="mse_xstart_simple.yaml")
 
     mean_strategy = instantiate(cfg)
     assert isinstance(mean_strategy, MseMeanXStartSimple)
 
 
-def test_mse_mean_epsilon_loss_instantiate(config_dir: str):
+def test_mse_epsilon_loss_instantiate(config_dir: str):
     with initialize_config_dir(version_base="1.3", config_dir=config_dir):
-        cfg = compose(config_name="mse_mean_epsilon.yaml")
+        cfg = compose(config_name="mse_epsilon.yaml")
 
     mean_strategy = instantiate(cfg)
     assert isinstance(mean_strategy, MseMeanEpsilon)
 
 
-def test_mse_mean_epsilon_loss_simple_instantiate(config_dir: str):
+def test_mse_epsilon_loss_simple_instantiate(config_dir: str):
     with initialize_config_dir(version_base="1.3", config_dir=config_dir):
-        cfg = compose(config_name="mse_mean_epsilon_simple.yaml")
+        cfg = compose(config_name="mse_epsilon_simple.yaml")
 
     mean_strategy = instantiate(cfg)
     assert isinstance(mean_strategy, MseMeanEpsilonSimple)

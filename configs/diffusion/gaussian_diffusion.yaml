@@ -3,7 +3,7 @@ defaults:
   - scheduler: linear
   - mean_strategy: epsilon
   - variance_strategy: fixed_small
-  - loss: mse_mean_epsilon_simple
+  - loss: mse_epsilon_simple
   - image_sampler: ddpm
   - timestep_sampler: uniform
   - model: unet

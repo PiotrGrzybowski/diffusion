@@ -25,7 +25,8 @@ sample_timesteps: 1000
 batch_size: 128
 
 task_name: null
-run_name: null
+debug_mode: False
+run_name: ${auto_run_name:${debug_mode}}
 
 train: True
 validate: False
