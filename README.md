@@ -39,6 +39,13 @@ For multi-GPU training, add the `trainer=ddp` flag and specify the number of dev
 ```bash
 uv run train experiment=quick_start trainer=ddp trainer.devices=4
 ```
+
+For `wandb` logging, login first using `wandb login`, then use the `logger=wandb` flag:
+
+```bash
+uv run train experiment=quick_start logger=wandb
+```
+
 This configuration uses the `epsilon` mean strategy, the `fixed_small` variance strategy, and the `mse_mean_epsilon_simple` loss function. Training for approximately 10 epochs is sufficient to obtain initial results (around 20 minutes on a single GPU).
 
 After training completes, checkpoints, logs, and validation samples will be stored under:
@@ -75,18 +82,13 @@ During sampling, the progressive denoising steps will be displayed in a pop-up w
 ## Core Components
 The implementation is organized around four key architectural decisions that you can mix and match:
 
-#### 1. Noise Scheduler
-Choose the noise scheduler by setting `diffusion/scheduler={option}`:
-- `linear`: Linear noise schedule
-- `cosine`: Cosine noise schedule
-
-#### 2. Mean Strategy
+#### 1. Mean Strategy
 Choose the mean strategy by setting `diffusion/mean_strategy={option}`:
 - `direct`: Predicts mean $\mu_t$ directly
 - `xstart`: Predicts original image $x_0$
 - `epsilon`: Predicts noise $\epsilon_t$ added to the image
 
-#### 3. Variance Strategy
+#### 2. Variance Strategy
 Choose the variance strategy by setting `diffusion/variance_strategy={option}`:
 - `direct`: Predicts variance $\sigma_t^2$ directly
 - `direct_log`: Predicts log-variance $\log \sigma_t^2$
@@ -94,22 +96,26 @@ Choose the variance strategy by setting `diffusion/variance_strategy={option}`:
 - `fixed_large`: Uses forward variance $\beta_t$
 - `trainable_range`: Predicts interpolation between `fixed_small` and `fixed_large` variances
 
-#### 4. Loss Function
+#### 3. Loss Function
 Select the loss function by setting `diffusion/loss={option}`:
 - `vlb`: Variational Lower Bound loss
 - `mse_{direct,xstart,epsilon}`: Weighted MSE losses for different mean strategies
 - `mse_{direct,xstart,epsilon}_simple`: Simple unweighted MSE losses
 - `hybrid`: Hybrid loss combining MSE and VLB
 
-#### 5. Image Sampler
+#### 4. Image Sampler
 Select the sampling strategy by setting `diffusion/image_sampler={option}`:
 - `ddpm`: Denoising Diffusion Probabilistic Model (ancestral sampling)
 - `ddim`: Denoising Diffusion Implicit Models (deterministic sampling)
 
-#### 6. Timestep Sampler
+#### 5. Timestep Sampler
 - `uniform`: Uniformly samples timesteps from 1 to T (default)
 - `tbd`
 
+#### 6. Noise Scheduler
+Choose the noise scheduler by setting `diffusion/scheduler={option}`:
+- `linear`: Linear noise schedule
+- `cosine`: **TODO** Cosine noise schedule
 **Files**: Core implementations in `src/diffusion/`, `schedulers.py`, `losses.py`, `means.py`, `variances.py`, `images_samplers.py`, `timestep_samplers.py`
 
 ## Configuration System
@@ -245,41 +251,6 @@ src/diffusion/
     └── unet.py                  # U-Net architecture
 ```
 
-## Testing
-
-The repository includes comprehensive tests for all components:
-
-```bash
-# Run all tests
-uv run pytest
-
-# Core component tests
-uv run pytest tests/test_gaussian_diffusion.py    # Main diffusion process
-uv run pytest tests/test_factors.py               # Diffusion factors computation
-uv run pytest tests/test_means.py                 # Mean strategies
-uv run pytest tests/test_variances.py             # Variance strategies
-uv run pytest tests/test_losses.py                # Loss functions
-uv run pytest tests/test_schedulers.py            # Noise schedulers
-uv run pytest tests/test_samplers.py              # Sampling strategies
-
-# Hydra configuration tests
-uv run pytest tests/test_*_hydra.py               # Config instantiation tests
-
-# Additional tests
-uv run pytest tests/test_checkpoints.py           # Checkpoint save/load
-uv run pytest tests/test_hybrid_gradient_isolation.py  # Hybrid loss gradients
-```
-
-
-## Development
-
-### Setting Up Development Environment
-
-```bash
-git clone https://github.com/PiotrGrzybowski/diffusion.git
-cd diffusion
-uv sync
-```
 
 ### Code Quality
 
@@ -294,9 +265,6 @@ uv run ruff format .
 
 # Run tests
 uv run pytest
-
-# Run specific test file
-uv run pytest tests/test_losses.py -v
 ```
 
 
