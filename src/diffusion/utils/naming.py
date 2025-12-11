@@ -45,14 +45,16 @@ def generate_run_name_from_hydra(debug_mode: bool = False) -> str:
         mean = choices.get("diffusion/mean_strategy", "unknown")
         variance = choices.get("diffusion/variance_strategy", "unknown")
         loss = choices.get("diffusion/loss", "unknown")
+        scheduler = choices.get("diffusion/scheduler", "unknown")
 
         # Sanitize names
         model_safe = _sanitize_name(model)
         mean_safe = _sanitize_name(mean)
         variance_safe = _sanitize_name(variance)
         loss_safe = _sanitize_name(loss)
+        scheduler_safe = _sanitize_name(scheduler)
 
-        return f"{model_safe}-{mean_safe}-{variance_safe}-{loss_safe}"
+        return f"{model_safe}-{mean_safe}-{variance_safe}-{loss_safe}-{scheduler_safe}"
     except Exception:
         # Hydra config not yet initialized, return placeholder
         return "auto"
@@ -121,11 +123,15 @@ def generate_run_name(
         ...     "diffusion/variance_strategy": "fixed_small",
         ...     "diffusion/loss": "mse_epsilon_simple",
         ... }
-        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        >>> with (
+        ...     tempfile.TemporaryDirectory() as tmpdir
+        ... ):
         ...     generate_run_name(
         ...         choices,
         ...         "mnist",
-        ...         Path(tmpdir),
+        ...         Path(
+        ...             tmpdir
+        ...         ),
         ...         False,
         ...     )
         'unet-epsilon-fixed_small-mse_epsilon_simple'

@@ -4,4 +4,3 @@ batch_size: 128
 num_workers: 0
 predict_samples: ${predict_samples}
 val_samples_per_label: 8
-train_samples_per_label: 100

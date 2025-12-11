@@ -14,7 +14,6 @@ from torchvision.utils import make_grid
 from diffusion.utils.extras import extras
 from diffusion.utils.instantiators import instantiate_loggers
 from diffusion.utils.ranked_logger import RankedLogger
-from diffusion.utils.run_utils import custom_main
 
 
 root_path = rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=False)
@@ -51,9 +50,9 @@ def sample(cfg: DictConfig):
     result = np.empty(0)
     for timestep, x_t in enumerate(module.sample(batch, cfg.sample_timesteps)):
         console.print(f"Sampling: {timestep}/{module.sample_timesteps}", end="\r")
+        result = make_grid(x_t, padding=0, nrow=int(math.sqrt(x_t.shape[0])))
+        result = result.permute(1, 2, 0).to("cpu", torch.uint8).numpy()
         if cfg.show:
-            result = make_grid(x_t, padding=0, nrow=int(math.sqrt(x_t.shape[0])))
-            result = result.permute(1, 2, 0).to("cpu", torch.uint8).numpy()
             cv2.imshow("image", cv2.resize(result, (512, 512)))
             cv2.waitKey(1)
 
@@ -68,7 +67,7 @@ def sample(cfg: DictConfig):
     torch.save(x_t, sample_path / f"sample_{cfg.ckpt_name}.pt")
 
 
-@custom_main(version_base="1.3", config_path=str(configs_path), config_name="sample.yaml")
+@hydra.main(version_base="1.3", config_path=str(configs_path), config_name="sample.yaml")
 def main(cfg: DictConfig) -> float | None:
     extras(cfg)
     sample(cfg)

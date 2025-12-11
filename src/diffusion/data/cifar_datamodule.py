@@ -4,7 +4,7 @@ from tempfile import gettempdir
 
 import torch
 from lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.transforms import transforms
 
 from diffusion.data.dataset_map import DatasetMap
@@ -70,10 +70,8 @@ class CIFAR10DataModule(LightningDataModule):
             val_dataset = FilteredDataset(
                 self.dataset_class(self.path, train=False, transform=self.transforms), self.labels, self.val_samples_per_label
             )
-            sample_dataset = FilteredDataset(
-                self.dataset_class(self.path, train=False, transform=self.transforms), None, self.predict_samples
-            )
 
+            sample_dataset = Subset(train_dataset, range(self.predict_samples))
             self.data_train = train_dataset
             self.data_val = val_dataset
             self.data_sample = sample_dataset
