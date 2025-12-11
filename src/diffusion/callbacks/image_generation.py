@@ -10,11 +10,12 @@ from torchvision.utils import make_grid, math
 
 
 class ImageGenerationCallback(Callback):
-    def __init__(self, samples: int, output_dir: Path | str, every_n_epochs: int = 1) -> None:
+    def __init__(self, samples: int, output_dir: Path | str, every_n_epochs: int = 1, verbose: bool = False) -> None:
         super().__init__()
         self.shape = (samples, 0, 0, 0)
         self.output_dir = Path(output_dir)
         self.every_n_epochs = every_n_epochs
+        self.verbose = verbose
 
     @rank_zero_only
     def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
@@ -24,9 +25,10 @@ class ImageGenerationCallback(Callback):
             batch = torch.randn(self.shape, device=pl_module.device)
             timesteps = pl_module.sample_timesteps
 
-            console = Console()
+            console = Console(soft_wrap=True)
             for i, x_t in enumerate(pl_module.sample(batch, timesteps)):
-                console.print(f"Predict sampling: {timesteps - i}/{timesteps}", end="\r")
+                if self.verbose:
+                    console.print(f"Predict sampling: {timesteps - i}/{timesteps}", end="\r")
 
             result = x_t.detach().cpu()
 
@@ -59,5 +61,3 @@ class ImageGenerationCallback(Callback):
     ) -> None:
         x, _ = batch
         self.shape = (self.shape[0], x.shape[1], x.shape[2], x.shape[3])
-        if dataloader_idx == 1:
-            print("Generating sample images...")
