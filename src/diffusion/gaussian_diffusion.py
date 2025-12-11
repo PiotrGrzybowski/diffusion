@@ -1,3 +1,5 @@
+from typing import Callable
+
 import numpy as np
 import torch
 from lightning import LightningModule
@@ -25,6 +27,7 @@ class GaussianDiffusion(LightningModule):
         scheduler: Scheduler,
         image_sampler: ImageSampler,
         timestep_sampler: TimestepSampler,
+        optimizer: Callable[..., torch.optim.Optimizer],
         timesteps: int,
         sample_timesteps: int,
     ) -> None:
@@ -36,6 +39,7 @@ class GaussianDiffusion(LightningModule):
         self.scheduler = scheduler
         self.image_sampler = image_sampler
         self.timestep_sampler = timestep_sampler
+        self.optimizer_config = optimizer
 
         self.factors = Factors(self.scheduler.schedule())
 
@@ -47,8 +51,6 @@ class GaussianDiffusion(LightningModule):
         self.train_variance_kl = VarianceKL()
         self.val_variance_kl = VarianceKL()
         self.nll_metric = ScalarAverage()
-
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-4)
 
         self.register_components()
 
@@ -209,7 +211,7 @@ class GaussianDiffusion(LightningModule):
         yield x_prev
 
     def configure_optimizers(self):
-        return self.optimizer
+        return self.optimizer_config(self.model.parameters())
 
     def register_components(self):
         components = {
@@ -217,7 +219,6 @@ class GaussianDiffusion(LightningModule):
             "variance": self.variance_strategy.__class__.__name__,
             "loss": self.loss.__class__.__name__,
             "scheduler": self.scheduler.__class__.__name__,
-            "optimizer": self.optimizer.__class__.__name__,
             "image_sampler": self.image_sampler.__class__.__name__,
             "timestep_sampler": self.timestep_sampler.__class__.__name__,
             "model": self.model.__class__.__name__,

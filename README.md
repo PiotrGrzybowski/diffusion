@@ -80,7 +80,7 @@ uv run sample task_name="mnist" run_name="unet-epsilon-fixed_small-mse_epsilon_s
 During sampling, the progressive denoising steps will be displayed in a pop-up window. Final generated images will be written to: `logs/mnist/hydra/unet-epsilon-fixed_small-mse_epsilon_simple/samples`. Images are also available in the configured logger (e.g., TensorBoard).
 
 ## Core Components
-The implementation is organized around four key architectural decisions that you can mix and match:
+The implementation is organized around following key architectural decisions that you can mix and match:
 
 #### 1. Mean Strategy
 Choose the mean strategy by setting `diffusion/mean_strategy={option}`:
@@ -134,6 +134,11 @@ Trainer and acceleration settings:
   - `ddp`: Distributed Data Parallel (multi-GPU)
 - `trainer.devices`: Number of devices to use (e.g., `1` for single GPU, `4` for 4 GPUs in DDP)
 - `trainer.max_epochs`: Maximum number of training epochs
+
+Optimizer settings:
+- `optimizer`: Optimizer to use (`adam` or `adamw`)
+- `optimizer.lr`: Learning rate (e.g., `1e-4`)
+- `optimizer.weight_decay`: Weight decay (e.g., `1e-5`)
 
 Logger options:
 - `logger`: Logger or multiple loggers to use. Available options:

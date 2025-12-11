@@ -18,3 +18,4 @@ image_sampler: ${image_sampler}
 timestep_sampler: ${timestep_sampler}
 loss: ${loss}
 model: ${model}
+optimizer: ${optimizer}
