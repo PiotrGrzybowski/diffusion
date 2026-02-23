@@ -81,35 +81,3 @@ class ImageNetDataModule(LightningDataModule):
 
     def test_dataloader(self):
         return self._build_dataloader(self.test_dataset, self.val_transform, shuffle=False)
-
-
-if __name__ == "__main__":
-    path = "/home/alphabrain/Data/imagenet/imagenet-1k-128x128"
-
-    print("=== Testing ImageNetDataModule ===")
-    datamodule = ImageNetDataModule(data_path=path, batch_size=4, num_workers=2, augment_train=True)
-
-    # Setup for training
-    datamodule.setup("fit")
-    print(f"Train dataset size: {len(datamodule.train_dataset)}")
-    print(f"Val dataset size: {len(datamodule.val_dataset)}")
-
-    # Test train dataloader
-    train_loader = datamodule.train_dataloader()
-    images, labels = next(iter(train_loader))
-    print(f"Train batch: Images {images.shape}, Labels {labels.shape}")
-    print(f"Train image range: [{images.min():.3f}, {images.max():.3f}]")
-
-    # Test val dataloader
-    val_loader = datamodule.val_dataloader()
-    images, labels = next(iter(val_loader))
-    print(f"Val batch: Images {images.shape}, Labels {labels.shape}")
-    print(f"Val image range: [{images.min():.3f}, {images.max():.3f}]")
-
-    # Setup for testing
-    datamodule.setup("test")
-    test_loader = datamodule.test_dataloader()
-    images, labels = next(iter(test_loader))
-    print(f"Test batch: Images {images.shape}, Labels {labels.shape}")
-
-    print("\n✅ ImageNetDataModule working correctly!")

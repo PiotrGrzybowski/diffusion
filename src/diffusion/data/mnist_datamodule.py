@@ -1,4 +1,3 @@
-import ssl
 from pathlib import Path
 from tempfile import gettempdir
 
@@ -9,9 +8,6 @@ from torchvision.transforms import transforms
 
 from diffusion.data.dataset_map import DatasetMap
 from diffusion.data.filtered_mnist import FilteredDataset
-
-
-ssl._create_default_https_context = ssl._create_unverified_context
 
 
 class MNISTDataModule(LightningDataModule):
@@ -45,7 +41,6 @@ class MNISTDataModule(LightningDataModule):
         self.predict_samples = predict_samples
 
         self.data_train: Dataset | None = None
-        self.data_val: Dataset | None = None
         self.data_val: Dataset | None = None
         self.data_predict: Dataset | None = None
 

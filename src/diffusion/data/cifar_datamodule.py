@@ -46,7 +46,6 @@ class CIFAR10DataModule(LightningDataModule):
 
         self.data_train: Dataset | None = None
         self.data_val: Dataset | None = None
-        self.data_val: Dataset | None = None
         self.data_predict: Dataset | None = None
 
         self.batch_size_per_device = batch_size

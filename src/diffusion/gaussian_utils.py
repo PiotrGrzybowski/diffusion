@@ -1,19 +1,19 @@
 import torch
 
 
-def gaussian_kl(mean_p: torch.Tensor, log_var_p: torch.Tensor, mean_q: torch.Tensor, log_var_q: torch.Tensor) -> torch.Tensor:
+def gaussian_kl(mean_1: torch.Tensor, log_var_1: torch.Tensor, mean_2: torch.Tensor, log_var_2: torch.Tensor) -> torch.Tensor:
     """Compute the KL divergence between two gaussians.
     Args:
-        mean_p (torch.Tensor): The mean of the first Gaussian.
-        var_p (torch.Tensor): The variance of the first Gaussian.
-        mean_q (torch.Tensor): The mean of the second Gaussian.
-        var_q (torch.Tensor): The variance of the second Gaussian.
+        mean_1 (torch.Tensor): The mean of the first Gaussian.
+        var_1 (torch.Tensor): The variance of the first Gaussian.
+        mean_2 (torch.Tensor): The mean of the second Gaussian.
+        var_2 (torch.Tensor): The variance of the second Gaussian.
 
     Returns:
         torch.Tensor: The KL divergence between the two Gaussians.
     """
 
-    return 0.5 * (-1.0 + log_var_q - log_var_p + torch.exp(log_var_p - log_var_q) + ((mean_p - mean_q) ** 2) * torch.exp(-log_var_q))
+    return 0.5 * (-1.0 + log_var_2 - log_var_1 + torch.exp(log_var_1 - log_var_2) + ((mean_1 - mean_2) ** 2) * torch.exp(-log_var_2))
 
 
 def approx_standard_normal_cdf(x: torch.Tensor) -> torch.Tensor:

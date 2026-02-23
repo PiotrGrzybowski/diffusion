@@ -83,10 +83,10 @@ class LinearAttention(nn.Module):
         q = q.softmax(dim=-2)
         k = k.softmax(dim=-1)
 
-        contex = torch.matmul(k, v.transpose(-2, -1))
+        context = torch.matmul(k, v.transpose(-2, -1))
         q = q * self.scale
 
-        out = torch.matmul(contex.transpose(-1, -2), q)
+        out = torch.matmul(context.transpose(-1, -2), q)
         out = out.view(b, self.hidden_dim, h, w)
         out = self.to_out(out)
         return out

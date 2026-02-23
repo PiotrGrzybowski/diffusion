@@ -25,6 +25,7 @@ Every component—noise schedulers, mean and variance strategies, samplers, obje
 git clone https://github.com/PiotrGrzybowski/diffusion.git
 cd diffusion
 uv sync
+source ./venv/bin/activate
 ```
 
 ## Training Your First Model
@@ -46,15 +47,15 @@ For `wandb` logging, login first using `wandb login`, then use the `logger=wandb
 uv run train experiment=quick_start logger=wandb
 ```
 
-This configuration uses the `epsilon` mean strategy, the `fixed_small` variance strategy, and the `mse_mean_epsilon_simple` loss function. Training for approximately 10 epochs is sufficient to obtain initial results (around 20 minutes on a single GPU).
+This configuration uses the `epsilon` mean strategy, the `fixed_small` variance strategy, and the `mse_epsilon_simple` loss function. Training for approximately 10 epochs is sufficient to obtain initial results (around 20 minutes on a single GPU).
 
 After training completes, checkpoints, logs, and validation samples will be stored under:
 
 ```
 logs/
-└── mnist/
+└── quick_start/
     ├── hydra/
-    │   └── unet-epsilon-fixed_small-mse_epsilon_simple/
+    │   └── mnist/
     │       ├── checkpoints/
     │       │   ├── epoch_009.ckpt
     │       │   └── last.ckpt
@@ -63,21 +64,21 @@ logs/
     │       ├── images/
     │       │   ├── sample_4.png
     │       │   └── sample_9.png
-    │       └── mnist.log
+    │       └── quick_start.log
     └── tensorboard/
-        └── unet-epsilon-fixed_small-mse_epsilon_simple/
+        └── mnist/
 ```
 
 When you later run the sampling script, an additional `samples/` directory will appear next to `images/`, containing generated outputs.
 
 ### Sampling from the Trained Model
-The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For the quick start example, set these to `mnist` and `unet-epsilon-fixed_small-mse_epsilon_simple`:
+The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For the quick start example, set these to `quick_start` and `mnist`:
 
 ```bash
-uv run sample task_name="mnist" run_name="unet-epsilon-fixed_small-mse_epsilon_simple" samples=16 show=True
+uv run sample task_name="quick_start" run_name="mnist" samples=16 show=True
 ```
 
-During sampling, the progressive denoising steps will be displayed in a pop-up window. Final generated images will be written to: `logs/mnist/hydra/unet-epsilon-fixed_small-mse_epsilon_simple/samples`. Images are also available in the configured logger (e.g., TensorBoard).
+During sampling, the progressive denoising steps will be displayed in a pop-up window. Final generated images will be written to: `logs/quick_start/hydra/mnist/samples`. Images are also available in the configured logger (e.g., TensorBoard).
 
 ## Core Components
 The implementation is organized around following key architectural decisions that you can mix and match:
@@ -99,8 +100,8 @@ Choose the variance strategy by setting `diffusion/variance_strategy={option}`:
 #### 3. Loss Function
 Select the loss function by setting `diffusion/loss={option}`:
 - `vlb`: Variational Lower Bound loss
-- `mse_{direct,xstart,epsilon}`: Weighted MSE losses for different mean strategies
-- `mse_{direct,xstart,epsilon}_simple`: Simple unweighted MSE losses
+- `mse_{mean,xstart,epsilon}`: Weighted MSE losses for different mean strategies
+- `mse_{mean,xstart,epsilon}_simple`: Simple unweighted MSE losses
 - `hybrid`: Hybrid loss combining MSE and VLB
 
 #### 4. Image Sampler
@@ -109,18 +110,18 @@ Select the sampling strategy by setting `diffusion/image_sampler={option}`:
 - `ddim`: Denoising Diffusion Implicit Models (deterministic sampling)
 
 #### 5. Timestep Sampler
-- `uniform`: Uniformly samples timesteps from 1 to T (default)
-- `tbd`
+Select the timestep sampling strategy by setting `diffusion/timestep_sampler={option}`:
+- `uniform`: Uniformly samples timesteps from 0 to T-1 (default)
 
 #### 6. Noise Scheduler
 Choose the noise scheduler by setting `diffusion/scheduler={option}`:
 - `linear`: Linear noise schedule
 - `cosine`: **TODO** Cosine noise schedule
-**Files**: Core implementations in `src/diffusion/`, `schedulers.py`, `losses.py`, `means.py`, `variances.py`, `images_samplers.py`, `timestep_samplers.py`
+**Files**: Core implementations in `src/diffusion/`: `schedulers.py`, `losses.py`, `means.py`, `variances.py`, `image_samplers.py`, `timestep_samplers.py`
 
 ## Configuration System
 Specify the necessary dataset configuration:
-- `data`: Dataset to use (e.g., `cifar10`, `mnist`, `fasion`, `kmnist`, `cifar100`)
+- `data`: Dataset to use (e.g., `cifar10`, `mnist`, `fashion`, `kmnist`)
 - `batch_size`: Batch size for training and validation
 
 Diffusion related parameters:
@@ -155,8 +156,8 @@ Callbacks:
 
 To effectively track and organize experiments, each run is identified by two key parameters:
 - `task_name`: Group of experiments (auto-generated from dataset name, e.g., `mnist`, `cifar10`)
-- `run_name`: Unique experiment identifier (auto-generated as `{model}-{mean}-{variance}-{loss}`)
-- Example: `unet-epsilon-fixed_small-mse_epsilon_simple`
+- `run_name`: Unique experiment identifier (auto-generated as `{model}-{mean}-{variance}-{loss}-{scheduler}`)
+- Example: `unet-epsilon-fixed_small-mse_epsilon_simple-linear`
 - Both names can be explicitly set via CLI or config files if desired
 
 All configs are in `configs/` organized by component:
@@ -165,14 +166,19 @@ All configs are in `configs/` organized by component:
 configs/
 ├── train.yaml                    # Main training config
 ├── sample.yaml                   # Sampling config
-├── trainer/                      # gpu, cpu, mps, ddp
+├── callbacks/                    # model_checkpoint, early_stopping, image_generation, ...
 ├── data/                         # mnist, cifar10
-├── logger/                       # wandb, tensorboard
+├── experiment/                   # quick_start
+├── logger/                       # wandb, tensorboard, csv
+├── optimizer/                    # adam, adamw
+├── trainer/                      # gpu, cpu, mps, ddp
 └── diffusion/
     ├── scheduler/                # linear, cosine
     ├── mean_strategy/            # epsilon, xstart, direct
     ├── variance_strategy/        # fixed_small, fixed_large, direct, direct_log, trainable_range
-    ├── loss/                     # vlb, mse_mean_{direct, xstart, epsilon}_{simple}, hybrid
+    ├── loss/                     # vlb, mse_{mean,xstart,epsilon}{,_simple}, hybrid
+    ├── image_sampler/            # ddpm, ddim
+    ├── timestep_sampler/         # uniform
     └── model/                    # unet, small_unet
 ```
 
@@ -217,7 +223,7 @@ The repository supports multiple datasets:
 - **CIFAR-10**: Natural images (32x32, RGB) - `data=cifar10`
 - **KMNIST**: Kuzushiji-MNIST (28x28, grayscale) - `data=mnist dataset_name=kmnist`
 - **FashionMNIST**: Fashion items (28x28, grayscale) - `data=mnist dataset_name=fashion`
-- **CIFAR-100**: Natural images with 100 classes (32x32, RGB) - `data=cifar100`
+- **CIFAR-100**: Natural images with 100 classes (32x32, RGB) - `data=cifar10 data.dataset_name=cifar100`
 
 ### Advanced Dataset Options
 
@@ -243,12 +249,26 @@ src/diffusion/
 ├── losses.py                    # Loss functions
 ├── means.py                     # Mean parameterizations
 ├── variances.py                 # Variance parameterizations
-├── samplers.py                  # Samplers
+├── image_samplers.py            # Image samplers (DDPM, DDIM)
+├── timestep_samplers.py         # Timestep samplers
 ├── diffusion_factors.py         # Definition of alphas, betas, gammas
+├── diffusion_terms.py           # Diffusion term data structures
 ├── gaussian_utils.py            # KL divergence, log-likelihood
+├── metrics.py                   # Evaluation metrics
+├── callbacks/
+│   ├── image_generation.py      # Generate samples during training
+│   └── rich_bar.py              # Rich progress bar
+├── data/
+│   ├── mnist_datamodule.py      # MNIST/FashionMNIST/KMNIST data module
+│   ├── cifar_datamodule.py      # CIFAR-10/CIFAR-100 data module
+│   ├── filtered_mnist.py        # Class filtering and sampling
+│   └── dataset_map.py           # Dataset mapping utilities
 ├── scripts/
 │   ├── train.py                 # Training entry point
-│   └── sample.py                # Sampling entry point
+│   ├── sample.py                # Sampling entry point
+│   ├── zoo.py                   # Model zoo download/manage
+│   └── upload.py                # Upload models to HF Hub
+├── utils/                       # Hydra utils, naming, logging, etc.
 └── models/
     ├── attention.py             # Attention modules
     ├── normalization.py         # Normalization layers
@@ -290,7 +310,58 @@ If you use this code or book in your research, please cite:
 - U-Net architecture adapted from OpenAI's `improved-diffusion` repository.
 
 ## Model Zoo
-Pretrained models will be made available soon.
+
+9 pretrained CIFAR-10 models are available, covering all mean/variance/loss combinations discussed in the paper. All files (configs, training samples, generated samples, and checkpoints) are hosted on [Hugging Face Hub](https://huggingface.co/PiotrGrzybowski/diffusion-model-zoo).
+
+### Available Models
+
+| Run Name | Mean | Variance | Loss | Scheduler |
+|---|---|---|---|---|
+| `unet-epsilon-fixed_small-mse_epsilon_simple-linear` | epsilon | fixed_small | mse_epsilon_simple | linear |
+| `unet-epsilon-fixed_small-vlb-linear` | epsilon | fixed_small | vlb | linear |
+| `unet-epsilon-direct_log-hybrid-linear` | epsilon | direct_log | hybrid | linear |
+| `unet-epsilon-trainable_range-hybrid-linear` | epsilon | trainable_range | hybrid | linear |
+| `unet-xstart-fixed_small-mse_xstart_simple-linear` | xstart | fixed_small | mse_xstart_simple | linear |
+| `unet-xstart-fixed_small-vlb-linear` | xstart | fixed_small | vlb | linear |
+| `unet-direct-fixed_small-vlb-linear` | direct | fixed_small | vlb | linear |
+| `unet-direct-direct_log-vlb-linear` | direct | direct_log | vlb | linear |
+| `unet-direct-direct-vlb-linear` | direct | direct | vlb | linear |
+
+### Download Pretrained Models
+
+Downloaded models are stored under `logs/zoo_{task}/` (e.g., `cifar10` → `logs/zoo_cifar10/`), keeping `logs/cifar10/` reserved for your own experiments:
+
+```bash
+# List available tasks
+uv run zoo list
+
+# List runs for a task (shows download status)
+uv run zoo list cifar10
+
+# Download a specific run
+uv run zoo download cifar10 unet-epsilon-fixed_small-mse_epsilon_simple-linear
+
+# Download all runs for a task
+uv run zoo download cifar10
+
+# Force re-download
+uv run zoo download cifar10 unet-epsilon-fixed_small-vlb-linear --force
+
+# Delete a downloaded run
+uv run zoo delete cifar10 unet-epsilon-fixed_small-vlb-linear
+
+# Delete all downloaded runs for a task
+uv run zoo delete cifar10
+```
+
+### Sample from a Pretrained Model
+
+After downloading, sample directly — the model appears as task `zoo_cifar10` in `logs/`:
+
+```bash
+uv run sample task_name="zoo_cifar10" run_name="unet-epsilon-fixed_small-mse_epsilon_simple-linear" \
+    samples=16 show=True
+```
 
 ## License
 
