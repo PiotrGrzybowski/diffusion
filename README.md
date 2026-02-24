@@ -28,8 +28,13 @@ uv sync
 source ./venv/bin/activate
 ```
 
-## Training Your First Model
-To train your first diffusion model, run the MNIST example below. By default the `tensorboard` logger is enabled.
+> **Note:** This project pins **PyTorch 2.3** to maintain backward compatibility with Pascal GPU architecture (e.g., GTX 1080, Tesla P100). If you are using a modern GPU (Turing, Ampere, or newer), feel free to upgrade PyTorch to a newer version.
+
+## Quick Start
+
+### Training
+
+Train a CIFAR-10 diffusion model using the `epsilon` mean strategy, `fixed_small` variance, and `mse_epsilon_simple` loss (`unet-epsilon-fixed_small-mse_epsilon_simple-linear`):
 
 ```bash
 uv run train experiment=quick_start
@@ -47,15 +52,13 @@ For `wandb` logging, login first using `wandb login`, then use the `logger=wandb
 uv run train experiment=quick_start logger=wandb
 ```
 
-This configuration uses the `epsilon` mean strategy, the `fixed_small` variance strategy, and the `mse_epsilon_simple` loss function. Training for approximately 10 epochs is sufficient to obtain initial results (around 20 minutes on a single GPU).
-
 After training completes, checkpoints, logs, and validation samples will be stored under:
 
 ```
 logs/
 └── quick_start/
     ├── hydra/
-    │   └── mnist/
+    │   └── cifar10/
     │       ├── checkpoints/
     │       │   ├── epoch_009.ckpt
     │       │   └── last.ckpt
@@ -66,19 +69,35 @@ logs/
     │       │   └── sample_9.png
     │       └── quick_start.log
     └── tensorboard/
-        └── mnist/
+        └── cifar10/
 ```
 
-When you later run the sampling script, an additional `samples/` directory will appear next to `images/`, containing generated outputs.
+### Using Pretrained Weights
 
-### Sampling from the Trained Model
-The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For the quick start example, set these to `quick_start` and `mnist`:
+If you want to skip training and jump straight to inference, download the pretrained checkpoint from the model zoo:
 
 ```bash
-uv run sample task_name="quick_start" run_name="mnist" samples=16 show=True
+uv run zoo download cifar10 unet-epsilon-fixed_small-mse_epsilon_simple-linear
 ```
 
-During sampling, the progressive denoising steps will be displayed in a pop-up window. Final generated images will be written to: `logs/quick_start/hydra/mnist/samples`. Images are also available in the configured logger (e.g., TensorBoard).
+Then sample directly:
+
+```bash
+uv run sample task_name="zoo_cifar10" run_name="unet-epsilon-fixed_small-mse_epsilon_simple-linear" \
+    samples=16 show=True
+```
+
+See the [Model Zoo](#model-zoo) section for all 9 available pretrained CIFAR-10 models.
+
+### Sampling from the Trained Model
+
+The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For the quick start example, set these to `quick_start` and `cifar10`:
+
+```bash
+uv run sample task_name="quick_start" run_name="cifar10" samples=16 show=True
+```
+
+During sampling, the progressive denoising steps will be displayed in a pop-up window. Final generated images will be written to: `logs/quick_start/hydra/cifar10/samples`. Images are also available in the configured logger (e.g., TensorBoard).
 
 ## Core Components
 The implementation is organized around following key architectural decisions that you can mix and match:
