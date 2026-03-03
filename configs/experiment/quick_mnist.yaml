@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - override /trainer: gpu
+  - override /data: mnist 
+  - override /logger: tensorboard
+
+trainer:
+  max_epochs: 30 
+
+batch_size: 64
+
+predict_samples: 16
+task_name: "quick_start"
+run_name: "mnist"

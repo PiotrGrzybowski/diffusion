@@ -3,7 +3,7 @@ defaults:
   - paths: default
   - hydra: default
   - extras: default
-  - logger: wandb
+  - logger: none
 
 accelerator: gpu
 

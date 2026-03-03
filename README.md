@@ -31,7 +31,7 @@ source ./venv/bin/activate
 > **Note:** This project pins **PyTorch 2.3** to maintain backward compatibility with Pascal GPU architecture (e.g., GTX 1080, Tesla P100). If you are using a modern GPU (Turing, Ampere, or newer), feel free to upgrade PyTorch to a newer version.
 
 ## Quick Start
-### Using Pretrained Weights
+### Sampling Using Pretrained Weights
 If you want to skip training and jump straight to inference, download the pretrained checkpoint from the model zoo:
 
 ```bash
@@ -41,17 +41,17 @@ uv run zoo download cifar10 quick_start
 Then sample directly:
 
 ```bash
-uv run sample task_name="zoo_cifar10" run_name="quick_start"  samples=16 show=True
+uv run sample task_name="zoo_cifar10" run_name="quick_start" samples=16 show=True
 ```
 
 See the [Model Zoo](#model-zoo) section for all 9 available pretrained CIFAR-10 models.
 
 ### Training
-
-Train a CIFAR-10 diffusion model using the `epsilon` mean strategy, `fixed_small` variance, and `mse_epsilon_simple` loss (`unet-epsilon-fixed_small-mse_epsilon_simple-linear`):
+Train a diffusion model on CIFAR-10 or MNIST data with a predefined configurations:
 
 ```bash
-uv run train experiment=quick_start
+uv run train experiment=quick_cifar
+uv run train experiment=quick_mnist
 ```
 
 For multi-GPU training, add the `trainer=ddp` flag and specify the number of devices:
