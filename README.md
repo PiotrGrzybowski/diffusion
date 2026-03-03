@@ -1,21 +1,23 @@
 # Diffusion Models: From Theory to Practice
 
-Practical companion repository to the paper  **"Foundations of Diffusion Models" (Grzybowski, 2025).**
+Practical companion repository to the book **"Diffusion Models from First Principles" (Grzybowski, 2025)**.
 
-This project implements diffusion models **exactly** as derived in the paper, following the mathematical identities, factorizations, and objectives. The repository is designed for researchers and students who want to **understand diffusion models from first principles**, not just run an existing implementation.
+Read the book online: **https://piotrgrzybowski.github.io/diffusion-foundations/**
+
+This project implements diffusion models **exactly** as derived in the book, following the mathematical identities, factorizations, and objectives. The repository is designed for researchers and students who want to **understand diffusion models from first principles**, not just run an existing implementation.
 
 ## Purpose of This Repository
 
 The goal of this codebase is to provide a clean, modular, and mathematically faithful implementation of [Denoising Diffusion Probabilistic Models](https://arxiv.org/pdf/2006.11239) along with a series of improvements from [Improved Diffusion](https://arxiv.org/pdf/2102.09672)
 
-Every component—noise schedulers, mean and variance strategies, samplers, objectives—corresponds one-to-one to sections of the paper. The code does *not* re-explain theory; instead, it realizes the formulas exactly as presented.
+Every component—noise schedulers, mean and variance strategies, samplers, objectives—corresponds one-to-one to sections of the book. The code does *not* re-explain theory; instead, it realizes the formulas exactly as presented.
 
-> 📝 **Start with the paper.**
+> 📝 **Start with the book.**
 > The repository assumes familiarity with the derivations and terminology introduced there.
 
 ## What This Repository Offers
 
-- **Mathematical clarity** - code mirrors the notation, factors, and equations used in the paper.
+- **Mathematical clarity** - code mirrors the notation, factors, and equations used in the book.
 - **Modularity** - interchangeable schedulers, mean strategies, variance strategies, and loss functions.
 - **Hydra-driven experiments** - clean experiment reproducibility with compositional configs.
 - **Research-first architecture** - minimal abstractions, maximal transparency.
@@ -24,24 +26,33 @@ Every component—noise schedulers, mean and variance strategies, samplers, obje
 ```bash
 git clone https://github.com/PiotrGrzybowski/diffusion.git
 cd diffusion
+uv venv -p python3.12
 uv sync
-source ./venv/bin/activate
+source ./.venv/bin/activate
+```
+
+For development (tests, lint, coverage), install dev dependencies as well:
+
+```bash
+uv sync --dev
 ```
 
 > **Note:** This project pins **PyTorch 2.3** to maintain backward compatibility with Pascal GPU architecture (e.g., GTX 1080, Tesla P100). If you are using a modern GPU (Turing, Ampere, or newer), feel free to upgrade PyTorch to a newer version.
+>
+> If dataset downloads fail due to local SSL certificate setup, you can use `DIFFUSION_INSECURE_SSL=1` as a temporary workaround while fixing certificates on your machine.
 
 ## Quick Start
 ### Sampling Using Pretrained Weights
 If you want to skip training and jump straight to inference, download the pretrained checkpoint from the model zoo:
 
 ```bash
-uv run zoo download cifar10 quick_start 
+uv run zoo download cifar10 unet-epsilon-fixed_small-mse_epsilon_simple-linear
 ```
 
 Then sample directly:
 
 ```bash
-uv run sample task_name="zoo_cifar10" run_name="quick_start" samples=16 show=True
+uv run sample task_name="zoo_cifar10" run_name="unet-epsilon-fixed_small-mse_epsilon_simple-linear" samples=16 show=True
 ```
 
 See the [Model Zoo](#model-zoo) section for all 9 available pretrained CIFAR-10 models.
@@ -57,13 +68,13 @@ uv run train experiment=quick_mnist
 For multi-GPU training, add the `trainer=ddp` flag and specify the number of devices:
 
 ```bash
-uv run train experiment=quick_start trainer=ddp trainer.devices=4
+uv run train experiment=quick_cifar trainer=ddp trainer.devices=4
 ```
 
 For `wandb` logging, login first using `wandb login`, then use the `logger=wandb` flag:
 
 ```bash
-uv run train experiment=quick_start logger=wandb
+uv run train experiment=quick_cifar logger=wandb
 ```
 
 After training completes, checkpoints, logs, and validation samples will be stored under:
@@ -81,7 +92,7 @@ logs/
     │       ├── images/
     │       │   ├── sample_4.png
     │       │   └── sample_9.png
-    │       └── quick_start.log
+    │       └── cifar10.log
     └── tensorboard/
         └── cifar10/
 ```
@@ -133,7 +144,7 @@ Select the timestep sampling strategy by setting `diffusion/timestep_sampler={op
 #### 6. Noise Scheduler
 Choose the noise scheduler by setting `diffusion/scheduler={option}`:
 - `linear`: Linear noise schedule
-- `cosine`: **TODO** Cosine noise schedule
+- `cosine`: Cosine noise schedule from Improved Diffusion
 **Files**: Core implementations in `src/diffusion/`: `schedulers.py`, `losses.py`, `means.py`, `variances.py`, `image_samplers.py`, `timestep_samplers.py`
 
 ## Configuration System
@@ -143,7 +154,7 @@ Specify the necessary dataset configuration:
 
 Diffusion related parameters:
 - `timesteps`: Number of diffusion steps (e.g., `1000`)
-- `predict_samples`: Number of samples to generate during sampling (by default same as `timesteps`)
+- `predict_samples`: Number of samples to generate during validation-time sampling callbacks (default: `4`)
 
 Trainer and acceleration settings:
 - `trainer`: Training backend - available options:
@@ -169,7 +180,7 @@ Callbacks:
   - `early_stopping`: Stop training when metric stops improving (monitor, patience)
   - `image_generation`: Generate sample images during training (every_n_epochs)
   - `rich_progress_bar`: Enhanced terminal progress display
-  - For longer training, increase `callbacks.image_generation.every_n_epochs` from `10` to a larger value as image sampling is time-consuming
+  - For longer training, increase `callbacks.image_generation.every_n_epochs` from `5` to a larger value as image sampling is time-consuming
 
 To effectively track and organize experiments, each run is identified by two key parameters:
 - `task_name`: Group of experiments (auto-generated from dataset name, e.g., `mnist`, `cifar10`)
@@ -185,7 +196,7 @@ configs/
 ├── sample.yaml                   # Sampling config
 ├── callbacks/                    # model_checkpoint, early_stopping, image_generation, ...
 ├── data/                         # mnist, cifar10
-├── experiment/                   # quick_start
+├── experiment/                   # quick_cifar, quick_mnist
 ├── logger/                       # wandb, tensorboard, csv
 ├── optimizer/                    # adam, adamw
 ├── trainer/                      # gpu, cpu, mps, ddp
@@ -219,7 +230,7 @@ uv run train \
     logger=tensorboard
 ```
 
-This is equivalent to the `quick_start` experiment. Now you can override specific components:
+You can also start from an experiment preset and override specific components:
 
 ```bash
 # Change loss function to VLB:
@@ -254,7 +265,7 @@ data.val_samples_per_label: 10        # Limit validation samples per label
 
 Example - Train on only MNIST digits 2 and 7 with 1000 samples each:
 ```bash
-uv run train experiment=quick_start data.labels=[2,7] data.train_samples_per_label=1000
+uv run train experiment=quick_mnist data.labels=[2,7] data.train_samples_per_label=1000
 ```
 
 ## Repository Structure
@@ -283,8 +294,7 @@ src/diffusion/
 ├── scripts/
 │   ├── train.py                 # Training entry point
 │   ├── sample.py                # Sampling entry point
-│   ├── zoo.py                   # Model zoo download/manage
-│   └── upload.py                # Upload models to HF Hub
+│   └── zoo.py                   # Model zoo download/manage
 ├── utils/                       # Hydra utils, naming, logging, etc.
 └── models/
     ├── attention.py             # Attention modules
@@ -309,13 +319,15 @@ uv run ruff format .
 uv run pytest
 ```
 
+If you only ran `uv sync` during installation, run `uv sync --dev` before the commands above.
+
 
 ## Citation
 If you use this code or book in your research, please cite:
 
 ```bibtex
 @book{grzybowski2025diffusion,
-  title={Foundations of Diffusion Models: From Theory to Practice},
+  title={Diffusion Models from First Principles},
   author={Grzybowski, Piotr},
   year={2025}
 }
@@ -328,7 +340,7 @@ If you use this code or book in your research, please cite:
 
 ## Model Zoo
 
-9 pretrained CIFAR-10 models are available, covering all mean/variance/loss combinations discussed in the paper. All files (configs, training samples, generated samples, and checkpoints) are hosted on [Hugging Face Hub](https://huggingface.co/PiotrGrzybowski/diffusion-model-zoo).
+9 pretrained CIFAR-10 models are available, covering all mean/variance/loss combinations discussed in the book. All files (configs, training samples, generated samples, and checkpoints) are hosted on [Hugging Face Hub](https://huggingface.co/PiotrGrzybowski/diffusion-model-zoo).
 
 ### Available Models
 
