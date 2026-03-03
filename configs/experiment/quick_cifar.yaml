@@ -1,14 +1,14 @@
 # @package _global_
 defaults:
   - override /trainer: gpu
-  - override /data: mnist
+  - override /data: cifar10
   - override /logger: tensorboard
 
 trainer:
-  max_epochs: 20
+  max_epochs: 70
 
 batch_size: 64
 
 predict_samples: 16
 task_name: "quick_start"
-run_name: "mnist"
+run_name: "cifar10"
