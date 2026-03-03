@@ -7,6 +7,9 @@ from rootutils import find_root
 from diffusion.data.mnist_datamodule import MNISTDataModule
 
 
+pytestmark = pytest.mark.network
+
+
 @pytest.fixture(scope="package")
 def diffusion_configs_path() -> Path:
     """A pytest fixture for path to the configs directory.

@@ -7,6 +7,9 @@ import torch
 from diffusion.data.cifar_datamodule import CIFAR10DataModule
 
 
+pytestmark = pytest.mark.network
+
+
 BATCH_SIZE = 32
 DATA_PATH = Path(tempfile.gettempdir()) / "data"
 
