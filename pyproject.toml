@@ -36,6 +36,7 @@ dependencies = [
 
 [project.scripts]
 train = "diffusion.scripts.train:main"
+sample = "diffusion.scripts.sample:main"
 zoo = "diffusion.scripts.zoo:main"
 
 [build-system]
@@ -84,4 +85,9 @@ markers = [
     "unit: marks tests as fast unit tests",
     "smoke: marks tests as smoke tests",
     "network: marks tests that require network access",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=9.0.2",
 ]

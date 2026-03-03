@@ -31,6 +31,20 @@ source ./venv/bin/activate
 > **Note:** This project pins **PyTorch 2.3** to maintain backward compatibility with Pascal GPU architecture (e.g., GTX 1080, Tesla P100). If you are using a modern GPU (Turing, Ampere, or newer), feel free to upgrade PyTorch to a newer version.
 
 ## Quick Start
+### Using Pretrained Weights
+If you want to skip training and jump straight to inference, download the pretrained checkpoint from the model zoo:
+
+```bash
+uv run zoo download cifar10 quick_start 
+```
+
+Then sample directly:
+
+```bash
+uv run sample task_name="zoo_cifar10" run_name="quick_start"  samples=16 show=True
+```
+
+See the [Model Zoo](#model-zoo) section for all 9 available pretrained CIFAR-10 models.
 
 ### Training
 
@@ -72,22 +86,6 @@ logs/
         └── cifar10/
 ```
 
-### Using Pretrained Weights
-
-If you want to skip training and jump straight to inference, download the pretrained checkpoint from the model zoo:
-
-```bash
-uv run zoo download cifar10 unet-epsilon-fixed_small-mse_epsilon_simple-linear
-```
-
-Then sample directly:
-
-```bash
-uv run sample task_name="zoo_cifar10" run_name="unet-epsilon-fixed_small-mse_epsilon_simple-linear" \
-    samples=16 show=True
-```
-
-See the [Model Zoo](#model-zoo) section for all 9 available pretrained CIFAR-10 models.
 
 ### Sampling from the Trained Model
 
