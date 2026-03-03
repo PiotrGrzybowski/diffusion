@@ -1,5 +1,8 @@
+import os
+import ssl
 from pathlib import Path
 from tempfile import gettempdir
+from urllib.error import URLError
 
 import torch
 from lightning import LightningDataModule
@@ -29,6 +32,7 @@ class MNISTDataModule(LightningDataModule):
         self.path = path
         self.batch_size = batch_size
         self.dataset_class = DatasetMap.get_dataset_class(dataset_name.lower())
+        self.dataset_name = dataset_name.lower()
         self.val_split = val_split
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -42,29 +46,41 @@ class MNISTDataModule(LightningDataModule):
 
         self.data_train: Dataset | None = None
         self.data_val: Dataset | None = None
-        self.data_predict: Dataset | None = None
+        self.data_sample: Dataset | None = None
 
         self.batch_size_per_device = batch_size
         self.shape = (1, 28, 28)
+
+        if self.dataset_name == "mnist" and hasattr(self.dataset_class, "mirrors"):
+            self.dataset_class.mirrors = [
+                "http://ossci-datasets.s3.amazonaws.com/mnist/",
+                "http://storage.googleapis.com/cvdf-datasets/mnist/",
+                "https://ossci-datasets.s3.amazonaws.com/mnist/",
+                "https://storage.googleapis.com/cvdf-datasets/mnist/",
+            ]
 
     @property
     def channels(self) -> int:
         return self.shape[0]
 
     def prepare_data(self) -> None:
-        self.dataset_class(self.path, train=True, download=True)
-        self.dataset_class(self.path, train=False, download=True)
+        self._load_dataset(train=True)
+        self._load_dataset(train=False)
 
     def setup(self, stage: str | None = None) -> None:
         self._check_batch_size_compatibility()
         if not self._is_setup():
             train_dataset = FilteredDataset(
-                self.dataset_class(self.path, train=True, transform=self.transforms), self.labels, self.train_samples_per_label
+                self._load_dataset(train=True, transform=self.transforms),
+                self.labels,
+                self.train_samples_per_label,
             )
             val_dataset = FilteredDataset(
-                self.dataset_class(self.path, train=False, transform=self.transforms), self.labels, self.val_samples_per_label
+                self._load_dataset(train=False, transform=self.transforms),
+                self.labels,
+                self.val_samples_per_label,
             )
-            sample_dataset = FilteredDataset(self.dataset_class(self.path, train=False, transform=self.transforms), None, 10)
+            sample_dataset = FilteredDataset(self._load_dataset(train=False, transform=self.transforms), None, 10)
 
             self.data_train = train_dataset
             self.data_val = val_dataset
@@ -85,7 +101,7 @@ class MNISTDataModule(LightningDataModule):
             raise RuntimeError("The training dataset is not loaded.")
 
     def val_dataloader(self) -> list[DataLoader[torch.Tensor]]:
-        if self.data_val:
+        if self.data_val is not None and self.data_sample is not None:
             validation_dataloader = DataLoader(
                 dataset=self.data_val,
                 batch_size=self.batch_size_per_device,
@@ -110,4 +126,18 @@ class MNISTDataModule(LightningDataModule):
                 raise RuntimeError(f"Batch size ({self.batch_size}) is not divisible by the number of devices ({self.trainer.world_size}).")
 
     def _is_setup(self) -> bool:
-        return self.data_train is not None and self.data_val is not None and self.data_val is not None
+        return self.data_train is not None and self.data_val is not None and self.data_sample is not None
+
+    def _load_dataset(self, train: bool, transform=None):
+        try:
+            return self.dataset_class(self.path, train=train, transform=transform, download=True)
+        except (ssl.SSLError, URLError, RuntimeError):
+            if os.getenv("DIFFUSION_INSECURE_SSL", "0") != "1":
+                raise
+
+            old_ctx = ssl._create_default_https_context
+            ssl._create_default_https_context = ssl._create_unverified_context
+            try:
+                return self.dataset_class(self.path, train=train, transform=transform, download=True)
+            finally:
+                ssl._create_default_https_context = old_ctx
