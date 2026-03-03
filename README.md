@@ -77,7 +77,7 @@ For `wandb` logging, login first using `wandb login`, then use the `logger=wandb
 uv run train experiment=quick_cifar logger=wandb
 ```
 
-After training completes, checkpoints, logs, and validation samples will be stored under:
+After training completes, checkpoints, logs, and validation samples will be stored under. In `experiment=quick_cifar`, the defaults are `task_name=quick_start` and `run_name=cifar10`:
 
 ```
 logs/
@@ -100,7 +100,7 @@ logs/
 
 ### Sampling from the Trained Model
 
-The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For the quick start example, set these to `quick_start` and `cifar10`:
+The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For `experiment=quick_cifar`, use `task_name=quick_start` and `run_name=cifar10`:
 
 ```bash
 uv run sample task_name="quick_start" run_name="cifar10" samples=16 show=True
