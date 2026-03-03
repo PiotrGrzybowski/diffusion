@@ -77,7 +77,7 @@ For `wandb` logging, login first using `wandb login`, then use the `logger=wandb
 uv run train experiment=quick_cifar logger=wandb
 ```
 
-After training completes, checkpoints, logs, and validation samples will be stored under. In `experiment=quick_cifar`, the defaults are `task_name=quick_start` and `run_name=cifar10`:
+After training completes, checkpoints, logs, and validation samples will be stored under. The quick experiments use preset names (`task_name=quick_start` with `run_name=cifar10` for `quick_cifar`, and `run_name=mnist` for `quick_mnist`):
 
 ```
 logs/
