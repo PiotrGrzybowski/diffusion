@@ -1,26 +1,16 @@
 # Diffusion Models: From Theory to Practice
 
-Practical companion repository to the book **"Diffusion Models from First Principles" (Grzybowski, 2025)**.
-
-Read the book online: **https://piotrgrzybowski.github.io/diffusion-foundations/**
+Practical companion repository to the book **"Diffusion Foundations" (Grzybowski, 2025)**.
 
 This project implements diffusion models **exactly** as derived in the book, following the mathematical identities, factorizations, and objectives. The repository is designed for researchers and students who want to **understand diffusion models from first principles**, not just run an existing implementation.
 
+- Book repository: **https://github.com/PiotrGrzybowski/diffusion-foundations**
+- Read online (PDF reader): **https://piotrgrzybowski.github.io/diffusion-foundations/**
 ## Purpose of This Repository
 
-The goal of this codebase is to provide a clean, modular, and mathematically faithful implementation of [Denoising Diffusion Probabilistic Models](https://arxiv.org/pdf/2006.11239) along with a series of improvements from [Improved Diffusion](https://arxiv.org/pdf/2102.09672)
+The goal of this codebase is to provide a clean, modular, and mathematically faithful implementation of [Denoising Diffusion Probabilistic Models](https://arxiv.org/pdf/2006.11239) along with a series of improvements from [Improved Diffusion](https://arxiv.org/pdf/2102.09672) ported from the original [OpenAI implementation](https://github.com/openai/improved-diffusion/tree/main) to PyTorch Lightning. The implementation is designed to be **transparent and educational**, closely following the derivations in the book.
 
-Every component—noise schedulers, mean and variance strategies, samplers, objectives—corresponds one-to-one to sections of the book. The code does *not* re-explain theory; instead, it realizes the formulas exactly as presented.
-
-> 📝 **Start with the book.**
-> The repository assumes familiarity with the derivations and terminology introduced there.
-
-## What This Repository Offers
-
-- **Mathematical clarity** - code mirrors the notation, factors, and equations used in the book.
-- **Modularity** - interchangeable schedulers, mean strategies, variance strategies, and loss functions.
-- **Hydra-driven experiments** - clean experiment reproducibility with compositional configs.
-- **Research-first architecture** - minimal abstractions, maximal transparency.
+> The repository assumes familiarity with the derivations and terminology introduced in **Diffusion Foundations**. If you haven't read the book yet, I highly recommend starting there to get the most out of this codebase.
 
 ## Installation
 ```bash
@@ -43,19 +33,19 @@ uv sync --dev
 
 ## Quick Start
 ### Sampling Using Pretrained Weights
-If you want to skip training and jump straight to inference, download the pretrained checkpoint from the model zoo:
+If you want to skip training and jump straight to inference, download the quick-start pretrained checkpoint from the model zoo:
 
 ```bash
-uv run zoo download cifar10 unet-epsilon-fixed_small-mse_epsilon_simple-linear
+uv run zoo download cifar10 quick_start
 ```
 
 Then sample directly:
 
 ```bash
-uv run sample task_name="zoo_cifar10" run_name="unet-epsilon-fixed_small-mse_epsilon_simple-linear" samples=16 show=True
+uv run sample task_name="zoo_cifar10" run_name="quick_start" samples=16 show=True
 ```
 
-See the [Model Zoo](#model-zoo) section for all 9 available pretrained CIFAR-10 models.
+This keeps quick start beginner-friendly by avoiding long run identifiers. See the [Model Zoo](#model-zoo) section for all advanced run names and manual commands.
 
 ### Training
 Train a diffusion model on CIFAR-10 or MNIST data with a predefined configurations:
@@ -77,7 +67,7 @@ For `wandb` logging, login first using `wandb login`, then use the `logger=wandb
 uv run train experiment=quick_cifar logger=wandb
 ```
 
-After training completes, checkpoints, logs, and validation samples will be stored under. The quick experiments use preset names (`task_name=quick_start` with `run_name=cifar10` for `quick_cifar`, and `run_name=mnist` for `quick_mnist`):
+After training completes, checkpoints, logs, and validation samples will be stored under. The quick experiments intentionally use simple preset names (`task_name=quick_start` with `run_name=cifar10` for `quick_cifar`, and `run_name=mnist` for `quick_mnist`) so the first run stays easy to follow:
 
 ```
 logs/
@@ -100,7 +90,7 @@ logs/
 
 ### Sampling from the Trained Model
 
-The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For `experiment=quick_cifar`, use `task_name=quick_start` and `run_name=cifar10`:
+The `sample.py` script reconstructs the full training configuration and automatically locates the corresponding checkpoint using the `task_name` and `run_name`. For `experiment=quick_cifar`, use the same simple names: `task_name=quick_start` and `run_name=cifar10`:
 
 ```bash
 uv run sample task_name="quick_start" run_name="cifar10" samples=16 show=True
@@ -185,7 +175,7 @@ Callbacks:
 To effectively track and organize experiments, each run is identified by two key parameters:
 - `task_name`: Group of experiments (auto-generated from dataset name, e.g., `mnist`, `cifar10`)
 - `run_name`: Unique experiment identifier (auto-generated as `{model}-{mean}-{variance}-{loss}-{scheduler}`)
-- Example: `unet-epsilon-fixed_small-mse_epsilon_simple-linear`
+- Example (advanced/custom runs): `unet-epsilon-fixed_small-mse_epsilon_simple-linear`
 - Both names can be explicitly set via CLI or config files if desired
 
 All configs are in `configs/` organized by component:
@@ -385,7 +375,14 @@ uv run zoo delete cifar10
 
 ### Sample from a Pretrained Model
 
-After downloading, sample directly — the model appears as task `zoo_cifar10` in `logs/`:
+Quick mode:
+
+```bash
+uv run zoo download cifar10 quick_start
+uv run sample task_name="zoo_cifar10" run_name="quick_start" samples=16 show=True
+```
+
+Advanced/manual mode (explicit run name):
 
 ```bash
 uv run sample task_name="zoo_cifar10" run_name="unet-epsilon-fixed_small-mse_epsilon_simple-linear" \
