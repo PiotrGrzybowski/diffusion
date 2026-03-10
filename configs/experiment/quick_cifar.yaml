@@ -1,11 +1,19 @@
 # @package _global_
 defaults:
   - override /trainer: gpu
+<<<<<<< HEAD:configs/experiment/quick_cifar.yaml
   - override /data: cifar10
   - override /logger: tensorboard
 
 trainer:
   max_epochs: 70
+=======
+  - override /data: mnist 
+  - override /logger: tensorboard
+
+trainer:
+  max_epochs: 30 
+>>>>>>> 71d9af0ee13c108265a3a843850a2309eac43777:configs/experiment/quick_mnist.yaml
 
 batch_size: 64
 

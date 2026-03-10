@@ -86,8 +86,3 @@ markers = [
     "smoke: marks tests as smoke tests",
     "network: marks tests that require network access",
 ]
-
-[tool.uv]
-dev-dependencies = [
-    "pytest>=9.0.2",
-]

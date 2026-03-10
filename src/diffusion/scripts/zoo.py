@@ -104,7 +104,7 @@ class ModelZoo:
         if run:
             targets = [_run_dir(task, run)]
         else:
-            task_dir = LOGS_DIR / task / "hydra"
+            task_dir = LOGS_DIR / f"zoo_{task}" / "hydra"
             if not task_dir.exists():
                 print(f"Nothing downloaded for task: {task}")
                 return

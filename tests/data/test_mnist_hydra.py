@@ -8,6 +8,9 @@ from omegaconf import open_dict
 from diffusion.data.mnist_datamodule import MNISTDataModule
 
 
+pytestmark = pytest.mark.network
+
+
 def test_hydra_default(configs_dir: Path) -> None:
     with initialize_config_dir(config_dir=str(configs_dir), version_base="1.3"):
         cfg = compose(config_name="data/mnist")
