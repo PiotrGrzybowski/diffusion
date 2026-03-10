@@ -26,14 +26,12 @@ def test_hydra_default(configs_dir: Path) -> None:
 @pytest.mark.parametrize("dataset_name", ["mnist", "fashion"])
 def test_hydra_various_datasets_default(configs_dir: Path, dataset_name: str) -> None:
     with initialize_config_dir(config_dir=str(configs_dir), version_base="1.3"):
-        cfg = compose(
-            config_name="data/mnist",
-            overrides=[f"data.dataset_name={dataset_name}", "data.batch_size=32"],
-        )
+        cfg = compose(config_name="data/mnist")
 
         with open_dict(cfg):
+            cfg.data.dataset_name = dataset_name
             cfg.data.validation_samples = 10
-            cfg.batch_size = 32
+            cfg.data.batch_size = 32
 
         datamodule: MNISTDataModule = instantiate(cfg.data)
         assert datamodule is not None

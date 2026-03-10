@@ -1,8 +1,9 @@
 from collections import defaultdict
 from math import ceil
+from typing import Any
 
 import torch
-from torch.utils.data import Subset
+from torch.utils.data import Dataset, Subset
 from torchvision.datasets import VisionDataset
 
 
@@ -22,7 +23,7 @@ class FilteredDataset(VisionDataset):
             indices: (list[int]) List of indices of the filtered dataset.
         """
 
-        self.dataset = dataset
+        self.dataset: Any = dataset
         self.labels = labels
         self.samples_per_class = samples_per_label
         self.indices = self._filter_indices()
@@ -30,6 +31,7 @@ class FilteredDataset(VisionDataset):
     def _filter_indices(self) -> list[int]:
         label_counts = defaultdict(int)
         indices = []
+        required_label_count = len(self.labels) if self.labels is not None else len(self.dataset.classes)
 
         for idx in range(len(self.dataset)):
             label = int(self.dataset.targets[idx])
@@ -37,7 +39,11 @@ class FilteredDataset(VisionDataset):
                 indices.append(idx)
                 label_counts[label] += 1
 
-                if self.samples_per_class and all(count >= self.samples_per_class for count in label_counts.values()):
+                if (
+                    self.samples_per_class
+                    and len(label_counts) == required_label_count
+                    and all(count >= self.samples_per_class for count in label_counts.values())
+                ):
                     break
 
         return indices
@@ -57,10 +63,10 @@ class FilteredDataset(VisionDataset):
 
 
 def build_balanced_subset(
-    dataset: VisionDataset,
+    dataset: Any,
     subset_size: int | None,
     labels: list[int] | None = None,
-) -> VisionDataset:
+) -> Dataset[Any]:
     if subset_size is None:
         return FilteredDataset(dataset, labels)
 
