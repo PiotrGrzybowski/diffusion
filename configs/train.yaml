@@ -32,7 +32,8 @@ run_name: ${auto_run_name:${debug_mode}}
 train: True
 validate: False
 
-predict_samples: 4
+validation_samples: 16
+predict_samples: 36
 
 ckpt_name: "last.ckpt"
 seed: null

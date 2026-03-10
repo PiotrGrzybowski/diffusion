@@ -8,7 +8,7 @@ defaults:
 accelerator: gpu
 
 show: True
-samples: 16
+predict_samples: 16
 batch_size: 16
 sample_timesteps: 1000
 

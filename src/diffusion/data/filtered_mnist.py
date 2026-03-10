@@ -1,6 +1,8 @@
 from collections import defaultdict
+from math import ceil
 
 import torch
+from torch.utils.data import Subset
 from torchvision.datasets import VisionDataset
 
 
@@ -52,3 +54,21 @@ class FilteredDataset(VisionDataset):
 
     def __len__(self) -> int:
         return len(self.indices)
+
+
+def build_balanced_subset(
+    dataset: VisionDataset,
+    subset_size: int | None,
+    labels: list[int] | None = None,
+) -> VisionDataset:
+    if subset_size is None:
+        return FilteredDataset(dataset, labels)
+
+    label_count = len(labels) if labels is not None else len(dataset.classes)
+    samples_per_label = ceil(subset_size / label_count)
+    filtered_dataset = FilteredDataset(dataset, labels, samples_per_label)
+
+    if len(filtered_dataset) < subset_size:
+        raise ValueError(f"Unable to build a validation subset of size {subset_size} from {len(filtered_dataset)} filtered samples.")
+
+    return Subset(filtered_dataset, range(subset_size))

@@ -9,6 +9,7 @@ trainer:
 
 batch_size: 64
 
+validation_samples: 16
 predict_samples: 16
 task_name: "quick_start"
 run_name: "cifar10"

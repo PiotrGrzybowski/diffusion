@@ -43,7 +43,7 @@ def sample_batch():
 
 def test_init_with_path_string(tmp_path):
     """Test initialization with string path."""
-    callback = ImageGenerationCallback(samples=4, output_dir=str(tmp_path), every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=str(tmp_path), every_n_epochs=1)
 
     assert callback.shape == (4, 0, 0, 0)
     assert callback.output_dir == tmp_path
@@ -52,7 +52,7 @@ def test_init_with_path_string(tmp_path):
 
 def test_init_with_path_object(tmp_path):
     """Test initialization with Path object."""
-    callback = ImageGenerationCallback(samples=8, output_dir=tmp_path, every_n_epochs=5)
+    callback = ImageGenerationCallback(predict_samples=8, output_dir=tmp_path, every_n_epochs=5)
 
     assert callback.shape == (8, 0, 0, 0)
     assert callback.output_dir == tmp_path
@@ -61,14 +61,14 @@ def test_init_with_path_object(tmp_path):
 
 def test_init_default_every_n_epochs(tmp_path):
     """Test that every_n_epochs defaults to 1."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path)
 
     assert callback.every_n_epochs == 1
 
 
 def test_captures_shape_from_batch(tmp_path, mock_trainer, mock_pl_module, sample_batch):
     """Test that callback captures correct shape from batch."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path)
 
     assert callback.shape == (4, 0, 0, 0)
 
@@ -84,7 +84,7 @@ def test_captures_shape_from_batch(tmp_path, mock_trainer, mock_pl_module, sampl
 
 def test_generates_images_on_correct_epoch(tmp_path, mock_trainer, mock_pl_module):
     """Test that images are generated on the correct epochs."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=2)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=2)
     callback.shape = (4, 3, 32, 32)
 
     mock_trainer.current_epoch = 0
@@ -108,7 +108,7 @@ def test_creates_output_directory(tmp_path, mock_trainer, mock_pl_module):
     """Test that output/images directory is created if it doesn't exist."""
     output_dir = tmp_path / "test_output"
     output_dir.mkdir()
-    callback = ImageGenerationCallback(samples=4, output_dir=output_dir, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=output_dir, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     images_dir = output_dir / "images"
@@ -123,7 +123,7 @@ def test_creates_output_directory(tmp_path, mock_trainer, mock_pl_module):
 
 def test_saves_image_with_correct_name(tmp_path, mock_trainer, mock_pl_module):
     """Test that images are saved with correct epoch-based names."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     for epoch in [0, 5, 10, 99]:
@@ -139,7 +139,7 @@ def test_saves_image_with_correct_name(tmp_path, mock_trainer, mock_pl_module):
 
 def test_calls_model_eval(tmp_path, mock_trainer, mock_pl_module):
     """Test that model is set to eval mode before sampling."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     mock_trainer.current_epoch = 0
@@ -150,7 +150,7 @@ def test_calls_model_eval(tmp_path, mock_trainer, mock_pl_module):
 
 def test_uses_correct_device(tmp_path, mock_trainer, mock_pl_module):
     """Test that tensors are created on the correct device."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     mock_pl_module.device = torch.device("cpu")
@@ -174,7 +174,7 @@ def test_uses_correct_device(tmp_path, mock_trainer, mock_pl_module):
 
 def test_uses_correct_sample_timesteps(tmp_path, mock_trainer, mock_pl_module):
     """Test that correct number of timesteps is used for sampling."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     expected_timesteps = 50
@@ -199,7 +199,7 @@ def test_uses_correct_sample_timesteps(tmp_path, mock_trainer, mock_pl_module):
 
 def test_handles_no_loggers(tmp_path, mock_trainer, mock_pl_module):
     """Test that callback works correctly when trainer has no loggers."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     mock_trainer.loggers = None
@@ -212,7 +212,7 @@ def test_handles_no_loggers(tmp_path, mock_trainer, mock_pl_module):
 
 def test_handles_empty_loggers_list(tmp_path, mock_trainer, mock_pl_module):
     """Test that callback works correctly when trainer has empty loggers list."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     mock_trainer.loggers = []
@@ -225,7 +225,7 @@ def test_handles_empty_loggers_list(tmp_path, mock_trainer, mock_pl_module):
 
 def test_generated_image_dimensions(tmp_path, mock_trainer, mock_pl_module):
     """Test that generated images have correct dimensions."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     mock_trainer.current_epoch = 0
@@ -244,7 +244,7 @@ def test_generated_image_dimensions(tmp_path, mock_trainer, mock_pl_module):
 
 def test_integration_full_workflow(tmp_path, mock_trainer, mock_pl_module):
     """Test complete workflow: batch start -> epoch end."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=2)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=2)
 
     batch = (torch.randn(8, 3, 28, 28), torch.tensor(list(range(8))))
     callback.on_validation_batch_start(mock_trainer, mock_pl_module, batch, batch_idx=0, dataloader_idx=0)
@@ -264,7 +264,7 @@ def test_integration_full_workflow(tmp_path, mock_trainer, mock_pl_module):
 
 def test_integration_multiple_epochs(tmp_path, mock_trainer, mock_pl_module):
     """Test generating images across multiple epochs."""
-    callback = ImageGenerationCallback(samples=4, output_dir=tmp_path, every_n_epochs=1)
+    callback = ImageGenerationCallback(predict_samples=4, output_dir=tmp_path, every_n_epochs=1)
     callback.shape = (4, 3, 32, 32)
 
     epochs = [0, 1, 2, 3, 4]
@@ -281,7 +281,7 @@ def test_integration_different_sample_counts(tmp_path, mock_trainer, mock_pl_mod
     for samples in [1, 4, 9, 16]:
         output_dir = tmp_path / f"samples_{samples}"
         output_dir.mkdir()
-        callback = ImageGenerationCallback(samples=samples, output_dir=output_dir, every_n_epochs=1)
+        callback = ImageGenerationCallback(predict_samples=samples, output_dir=output_dir, every_n_epochs=1)
         callback.shape = (samples, 3, 32, 32)
 
         mock_trainer.current_epoch = 0

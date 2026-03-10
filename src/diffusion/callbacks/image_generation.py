@@ -10,9 +10,9 @@ from torchvision.utils import make_grid, math
 
 
 class ImageGenerationCallback(Callback):
-    def __init__(self, samples: int, output_dir: Path | str, every_n_epochs: int = 1, verbose: bool = False) -> None:
+    def __init__(self, predict_samples: int, output_dir: Path | str, every_n_epochs: int = 1, verbose: bool = False) -> None:
         super().__init__()
-        self.shape = (samples, 0, 0, 0)
+        self.shape = (predict_samples, 0, 0, 0)
         self.output_dir = Path(output_dir)
         self.every_n_epochs = every_n_epochs
         self.verbose = verbose
@@ -24,6 +24,7 @@ class ImageGenerationCallback(Callback):
 
             batch = torch.randn(self.shape, device=pl_module.device)
             timesteps = pl_module.sample_timesteps
+            x_t = batch
 
             console = Console(soft_wrap=True)
             for i, x_t in enumerate(pl_module.sample(batch, timesteps)):

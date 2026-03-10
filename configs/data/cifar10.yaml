@@ -2,5 +2,4 @@ _target_: diffusion.data.cifar_datamodule.CIFAR10DataModule
 path: /tmp/data
 batch_size: 128
 num_workers: 0
-predict_samples: ${predict_samples}
-val_samples_per_label: 8
+validation_samples: ${validation_samples}

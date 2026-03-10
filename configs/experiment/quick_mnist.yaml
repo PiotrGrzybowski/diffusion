@@ -7,8 +7,9 @@ defaults:
 trainer:
   max_epochs: 30 
 
-batch_size: 64
+batch_size: 128
 
-predict_samples: 16
+validation_samples: 16
+predict_samples: 36
 task_name: "quick_start"
 run_name: "mnist"

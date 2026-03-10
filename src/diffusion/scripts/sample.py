@@ -42,7 +42,7 @@ def sample(cfg: DictConfig):
     model.load_state_dict(state_dict)
     module = fabric.setup_module(model)
 
-    batch = torch.randn(cfg.samples, module_cfg.in_channels, module_cfg.dim, module_cfg.dim, device=fabric.device)
+    batch = torch.randn(cfg.predict_samples, module_cfg.in_channels, module_cfg.dim, module_cfg.dim, device=fabric.device)
 
     console = Console()
 

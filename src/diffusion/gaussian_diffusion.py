@@ -163,7 +163,7 @@ class GaussianDiffusion(LightningModule):
                 add_dataloader_idx=False,
                 sync_dist=True,
             )
-        else:
+        elif dataloader_idx == 1:
             x_start, _ = batch
             console = Console()
             nll = torch.tensor(0.0, device=self.device)
@@ -172,9 +172,9 @@ class GaussianDiffusion(LightningModule):
                 timesteps = self.timestep_sampler.full_like(x_start, timestep, self.device)
                 target_terms, predicted_terms = self.diffusion_step(x_start, timesteps)
                 nll += vlb(target_terms, predicted_terms, timesteps)
-                console.print(f"Val sampling: {self.sample_timesteps - timestep}/{self.sample_timesteps}, nll={nll}", end="\r")
+                console.print(f"Validation sampling: {self.sample_timesteps - timestep}/{self.sample_timesteps}, nll={nll}", end="\r")
             self.nll_metric.update(nll)
-            self.log("nll", self.nll_metric, on_epoch=True, prog_bar=True, add_dataloader_idx=False, sync_dist=True)
+            self.log("val/nll", self.nll_metric, on_epoch=True, prog_bar=True, add_dataloader_idx=False, sync_dist=True)
 
     def on_after_backward(self) -> None:
         norm = 0.0

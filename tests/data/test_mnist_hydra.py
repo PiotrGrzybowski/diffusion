@@ -13,7 +13,7 @@ def test_hydra_default(configs_dir: Path) -> None:
         cfg = compose(config_name="data/mnist")
 
         with open_dict(cfg):
-            cfg.predict_samples = 10
+            cfg.validation_samples = 10
             cfg.batch_size = 32
 
         module = instantiate(cfg)
@@ -29,7 +29,7 @@ def test_hydra_various_datasets_default(configs_dir: Path, dataset_name: str) ->
         )
 
         with open_dict(cfg):
-            cfg.predict_samples = 10
+            cfg.data.validation_samples = 10
             cfg.batch_size = 32
 
         datamodule: MNISTDataModule = instantiate(cfg.data)

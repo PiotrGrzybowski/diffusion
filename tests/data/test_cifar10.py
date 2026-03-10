@@ -61,7 +61,7 @@ def test_cifar10_dataloader_batch(datamodule: CIFAR10DataModule) -> None:
 def test_cifar10_filtered() -> None:
     """Tests if the batch size and number of batches are correct for filtered datasets."""
     datamodule = CIFAR10DataModule(
-        path=DATA_PATH, batch_size=BATCH_SIZE, labels=[0, 1], train_samples_per_label=1280, val_samples_per_label=320
+        path=DATA_PATH, batch_size=BATCH_SIZE, labels=[0, 1], train_samples_per_label=1280, validation_samples=640
     )
     datamodule.setup()
     train_dataloader = datamodule.train_dataloader()
@@ -79,5 +79,6 @@ def test_cifar10_filtered() -> None:
     assert len(y_val) == BATCH_SIZE
 
     sample_batch = next(iter(sample_dataloader))
-    x_sample, _ = sample_batch
-    assert len(x_sample) == datamodule.predict_samples
+    x_sample, y_sample = sample_batch
+    assert len(x_sample) == datamodule.validation_samples
+    assert set(y_sample.tolist()) <= {0, 1}

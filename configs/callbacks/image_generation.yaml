@@ -1,5 +1,6 @@
 image_generation:
   _target_: diffusion.callbacks.image_generation.ImageGenerationCallback
   output_dir: ${trainer.default_root_dir}
-  samples: null
+  predict_samples: ${predict_samples}
   every_n_epochs: null
+  verbose: True

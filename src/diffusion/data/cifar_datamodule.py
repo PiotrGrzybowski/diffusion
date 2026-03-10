@@ -4,11 +4,11 @@ from tempfile import gettempdir
 
 import torch
 from lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import transforms
 
 from diffusion.data.dataset_map import DatasetMap
-from diffusion.data.filtered_mnist import FilteredDataset
+from diffusion.data.filtered_mnist import FilteredDataset, build_balanced_subset
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -23,10 +23,9 @@ class CIFAR10DataModule(LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
-        predict_samples: int = 4,
+        validation_samples: int | None = None,
         labels: list[int] | None = None,
         train_samples_per_label: int | None = None,
-        val_samples_per_label: int | None = None,
     ) -> None:
         super().__init__()
 
@@ -39,10 +38,9 @@ class CIFAR10DataModule(LightningDataModule):
 
         self.transforms = transforms.Compose([transforms.ToTensor(), transforms.RandomHorizontalFlip(), transforms.Normalize([0.5], [0.5])])
 
+        self.validation_samples = validation_samples
         self.labels = labels
         self.train_samples_per_label = train_samples_per_label
-        self.val_samples_per_label = val_samples_per_label
-        self.predict_samples = predict_samples
 
         self.data_train: Dataset | None = None
         self.data_val: Dataset | None = None
@@ -66,14 +64,12 @@ class CIFAR10DataModule(LightningDataModule):
             train_dataset = FilteredDataset(
                 self.dataset_class(self.path, train=True, transform=self.transforms), self.labels, self.train_samples_per_label
             )
-            val_dataset = FilteredDataset(
-                self.dataset_class(self.path, train=False, transform=self.transforms), self.labels, self.val_samples_per_label
+            val_dataset = build_balanced_subset(
+                self.dataset_class(self.path, train=False, transform=self.transforms), self.validation_samples, self.labels
             )
 
-            sample_dataset = Subset(train_dataset, range(self.predict_samples))
             self.data_train = train_dataset
             self.data_val = val_dataset
-            self.data_sample = sample_dataset
 
     def train_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         if self.data_train:
@@ -88,7 +84,7 @@ class CIFAR10DataModule(LightningDataModule):
             raise RuntimeError("The training dataset is not loaded.")
 
     def val_dataloader(self) -> list[DataLoader[torch.Tensor]]:
-        if self.data_val:
+        if self.data_val is not None:
             validation_dataloader = DataLoader(
                 dataset=self.data_val,
                 batch_size=self.batch_size_per_device,
@@ -97,8 +93,8 @@ class CIFAR10DataModule(LightningDataModule):
                 shuffle=False,
             )
             sample_dataloader = DataLoader(
-                dataset=self.data_sample,
-                batch_size=self.predict_samples,
+                dataset=self.data_val,
+                batch_size=len(self.data_val),
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory,
                 shuffle=False,
@@ -113,4 +109,4 @@ class CIFAR10DataModule(LightningDataModule):
                 raise RuntimeError(f"Batch size ({self.batch_size}) is not divisible by the number of devices ({self.trainer.world_size}).")
 
     def _is_setup(self) -> bool:
-        return self.data_train is not None and self.data_val is not None and self.data_test is not None
+        return self.data_train is not None and self.data_val is not None and self.data_validation_sample is not None

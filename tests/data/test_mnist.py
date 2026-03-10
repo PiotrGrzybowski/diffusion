@@ -65,7 +65,7 @@ def test_mnist_dataloader_batch(data_path: Path, batch_size: int) -> None:
 @pytest.mark.parametrize("batch_size", [32, 64, 128])
 def test_mnist_filtered(data_path: Path, batch_size: int) -> None:
     datamodule = MNISTDataModule(
-        path=data_path, batch_size=batch_size, labels=[0, 1], train_samples_per_label=1280, val_samples_per_label=320
+        path=data_path, batch_size=batch_size, labels=[0, 1], train_samples_per_label=1280, validation_samples=640
     )
     datamodule.setup()
 
@@ -84,5 +84,6 @@ def test_mnist_filtered(data_path: Path, batch_size: int) -> None:
     assert len(y_val) == batch_size
 
     sample_batch = next(iter(sample_dataloader))
-    x_sample, _ = sample_batch
-    assert len(x_sample) == datamodule.predict_samples
+    x_sample, y_sample = sample_batch
+    assert len(x_sample) == datamodule.validation_samples
+    assert set(y_sample.tolist()) <= {0, 1}
